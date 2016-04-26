@@ -3,6 +3,8 @@
 # very early, pseudocode-style sketch at this point
 # basically just a notepad of requirements and ideas
 
+import config
+
 def init():
 # Power-On-Self-Test
 # - Battery
@@ -27,6 +29,8 @@ def image_recording():
 	# record HD video for 1 minute and save
 	# take HiRes static image and save
 	# take lowres SSTV Robot 36 image and save
+    ## for SSTV loop, see https://github.com/hatsunearu/pisstvpp/blob/master/sstvcatch.py
+    # maybe change camera position for SSTV (e.g. ground, horizon, top)
 	# check for disk space and power saving
 	# add SSTV to telemetry queue
 	return
@@ -59,6 +63,7 @@ def	transmission():
 		fetch image
 		send_sstv(image)
 	# tbd: better syncing so that the frequency of transmission does not depend on timing of the execution, i.e. that the delay evens that out.
+    # tbd: if queue grows faster than transmission, drop older elements from queue (but keep them on storage device, e.g. while Queue.qsize() > 5: element = Queue.get() )
 
 def power_monitoring():
 	# turn off optional components and tasks if power goes down
