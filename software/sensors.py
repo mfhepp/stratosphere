@@ -3,12 +3,11 @@
 # tbd: super-robust error handling
 # i2c docs e.g. from http://www.raspberry-projects.com/pi/programming-in-python/i2c-programming-in-python/using-the-i2c-interface-2
 
-
 import config
 
 def get_temperature_cpu():
     """Returns the temperature of the Raspberry CPU in degree Celsius"""
-    # Internal
+    # Internal, see https://cae2100.wordpress.com/2012/12/29/reading-cpu-temps-using-python-for-raspberry-pi/
     return 0.0
     
 def get_temperature_DS18B20(sensor_id=''):
