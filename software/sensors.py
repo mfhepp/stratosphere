@@ -25,7 +25,8 @@ def get_temperature_external():
 
 def get_pressure():
     """Returns the pressure from the AP40N-200KG-Stick pressure sensor"""
-    # see http://shop.pewatron.com/search/ap40r-200kg-stick-drucksensor.htm
+    # see http://shop.pewatron.com/search/ap40r-200kg-stick-drucksensor.
+    # for BMP180, see http://www.cs.unca.edu/~brock/classes/Spring2014/csci320/labs/csci320/bmp180json.py
     # I2C Slave Address 0x28
     return 0.0
     
@@ -48,6 +49,8 @@ def get_humidty():
     """Returns data from the HTU21D humidity sensors inside and outside the probe"""
     # see http://www.exp-tech.de/sparkfun-feuchtesensor-breakout-htu21d
     # I2C
+    # library in case we use Si7006-A20 Temperature and Humidity sensor instead:
+    #     https://github.com/automote/Si7006
     # mind temperature compensation, heating, etc.
 
 def get_adc(channel, gain=0):
