@@ -2,7 +2,7 @@
 # main routines for balloon probe
 # very early, pseudocode-style sketch at this point
 # basically just a notepad of requirements and ideas
-
+# logging - very important for post-mission analysis
 
 import config
 
@@ -11,7 +11,7 @@ def init():
 # - Battery
 # - Transmiter
 # - Sensors
-# Set Time / Date
+# Set system Time / Date according to GPS, see also http://www.lammertbies.nl/comm/info/GPS-time.html
 # Logging
 	pass
 	return
@@ -21,20 +21,28 @@ def run():
     # start videoRecording (save in intervals of 5 minutes) thread
     # start measurement thread
     # start telemetry and sstv thread
-    # start power monitoring thread (will shut down non-essential functionality in case of near battery failure)
+    # start power monitoring thread (will shut down non-essential functionality in case of near battery failure and monitor power button)
 	pass
 	return
+    
+def gps_monitoring():
+    '''Reads GPS device and keeps last position and other data up to date.
+    Also updates system clock from GPS time stamp.'''
+    # Also log all raw NMEA packets with system timestamp in file
+    # Also use LED indicator when GPS has receiption (condition tbd; maybe blink whenever new valid position is received)
+    return
 
 def image_recording():
 # initialize and test equipment
 	while True:
 	# record HD video for 1 minute and save
-    ## see also http://www.netzmafia.de/skripten/hardware/RasPi/RasPi_Kamera.html
+    # see http://picamera.readthedocs.io/en/release-1.10/recipes1.html#overlaying-text-on-the-output
+    # see also http://www.netzmafia.de/skripten/hardware/RasPi/RasPi_Kamera.html
 	# take HiRes static image and save
     # add basic telemetry data (and save under new filename?)
 	# take lowres SSTV Robot 36 image and save
     # add callsign + telemetry data
-    # use cv2.rectangle() + cv2.putText() for that
+    # use cv2.rectangle() + cv2.putText() for that or 
     ## for SSTV loop, see https://github.com/hatsunearu/pisstvpp/blob/master/sstvcatch.py
     # maybe change camera position for SSTV (e.g. ground, horizon, top)
 	# check for disk space and power saving
@@ -42,7 +50,14 @@ def image_recording():
 	return
 
 def sensor_recording():
-	# add LED
+	# add LED, like so
+    # import RPi.GPIO as GPIO ## Import GPIO library
+    # GPIO.setmode(GPIO.BOARD) ## Use board pin numbering
+    # GPIO.setup(7, GPIO.OUT) ## Setup GPIO Pin 7 to OUT
+    # GPIO.output(7,True)
+    # time.sleep (0.3)
+    # GPIO.output(7,False)
+    
 	while True:
 		Timestamp = currentTime
 		set LED1 = ON
@@ -79,3 +94,5 @@ def	transmission():
 def power_monitoring():
 	# turn off optional components and tasks if power goes down
 	# maybe in several steps (first reduce SSTV power, then SSTV rate, then turn SSTV off, then reduce data frequency, then reduce data power, then only GPS with high power every 15 minutes, then shut down all systems 
+    # also handle power on / off button, maybe use events, see http://raspi.tv/2013/how-to-use-interrupts-with-python-on-the-raspberry-pi-and-rpi-gpio-part-3
+    # and http://stackoverflow.com/questions/16143842/raspberry-pi-gpio-events-in-python

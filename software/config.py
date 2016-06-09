@@ -21,17 +21,32 @@ SENSOR_ADC_CHANNEL_CURRENT = 1
 SENSOR_ADC_CHANNEL_EXTERNAL_TEMPERATURE = 2
 
 # Transceiver
-CALLSIGN = "DO1MFH" # insert your mission callsign 
-TRANSMISSION_POWER_DEFAULT = 'low' # low = 0.5 W, high = 1 W
+CALLSIGN = "DO1MFH" # insert your mission callsign
+APRS_SSID = CALLSIGN + "-11" 
+TRANSMISSION_POWER_DEFAULT = 'high' # low = 0.5 W, high = 1 W
 APRS_ON = True
 APRS_FREQUENCY = 144.800
 APRS_RATE = 60 # one transmission per 60 seconds
 SSTV_ON = True
-SSTV_FREQUENCY = 144.500
+SSTV_FREQUENCY = 144.600 (?)
 SSTV_MODE = "r36" # Robot 36
 # Martin 1: m1 / Martin 2: m2 / Scottie 1: s1 / Scottie 2: s2 / Scottie DX: sdx / Robot 36: r36
 # Values from https://github.com/hatsunearu/pisstvpp
 SSTV_DELAY = 60 # wait 60 seconds after each transmission
+
+# GPIO pin configuration for secondary cameras
+CAM1_ENABLE_PIN = 1
+CAM1_STATUS_LED_PIN = 1
+CAM2_ENABLE_PIN = 1
+CAM2_STATUS_LED_PIN = 1
+POWER_BUTTON_PIN = 1
+MAIN_STATUS_LED_PIN = 1
+
+# GPIO pin configuration for DORJI DRA818V transceiver module
+DRA818_SQ = None # Squelch detection.. Low -> Audio amplifier on 
+DRA818_PTT = 1 # Tx/Rx control pin: Low->TX; High->RX
+DRA818_PD = 1 # Power saving control pin: Low->sleep mode; High->normal mode
+DRA818_HL = 1 # RF Power Selection: Low->0.5W; floated->1W
 
 # Directories and filenames
 LOGFILE_DIR = "/logfiles/"

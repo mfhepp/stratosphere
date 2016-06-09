@@ -9,25 +9,41 @@ def init():
     '''Initialize and self-test transceiver module'''
     return
     
-def send_aprs(filename, power_level = TRANSMISSION_POWER_DEFAULT):
-    '''Tunes transceiver to APRS frequency and transmits the audio from the given filename'''
+def send_aprs(aprs_message, power_level = TRANSMISSION_POWER_DEFAULT):
+    '''Tunes transceiver to APRS frequency, converts the APRS message to audio, and transmits the audio'''
+    transmission_status = False
     # initialize module - set frequency, modulation width, ...
+    # DRA818_SQ = None # Squelch detection.. Low -> Audio amplifier on 
+    # DRA818_PTT = 1 # Tx/Rx control pin: Low->TX; High->RX
+    # DRA818_PD = 1 # Power saving control pin: Low->sleep mode; High->normal mode
+    # DRA818_HL = 1 # RF Power Selection: Low->0.5W; floated->1W
     # activate transmission
     # wait (for calibration)
     # send audio
     # wait
     # stop transmission
-    return
+    return transmission_status 
     
-def send_sstv(filename, power_level = TRANSMISSION_POWER_DEFAULT):
-    '''Tunes transceiver to SSTV frequency and transmits the audio from the given filename'''
+def send_sstv(image_filename, power_level = TRANSMISSION_POWER_DEFAULT):
+    '''Tunes transceiver to SSTV frequency and transmits the image from the given filename'''
+    transmission_status = False
     # initialize module - set frequency, modulation width, ...
+    # DRA818_SQ = None # Squelch detection.. Low -> Audio amplifier on 
+    # DRA818_PTT = 1 # Tx/Rx control pin: Low->TX; High->RX
+    # DRA818_PD = 1 # Power saving control pin: Low->sleep mode; High->normal mode
+    # DRA818_HL = 1 # RF Power Selection: Low->0.5W; floated->1W
     # activate transmission
     # wait (for calibration)
     # send audio
     # wait
     # stop transmission
-    return
+    # SSTV_ON = True
+    # SSTV_FREQUENCY = 144.600
+    # SSTV_MODE = "r36" # Robot 36
+    # Martin 1: m1 / Martin 2: m2 / Scottie 1: s1 / Scottie 2: s2 / Scottie DX: sdx / Robot 36: r36
+    # Values from https://github.com/hatsunearu/pisstvpp
+    # SSTV_DELAY = 60 # wait 60 seconds after each transmission
+    return transmission_status 
 
 def generate_aprs_telemetry_config():
     '''Creates Base91 Comment Telemetry message (units, labels, ...)'''

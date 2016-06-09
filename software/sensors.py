@@ -12,21 +12,34 @@ def get_temperature_cpu():
     
 def get_temperature_DS18B20(sensor_id=''):
     """Returns the temperature of the given DS18B20 sensor in degree Celsius"""
-    # see also https://github.com/timofurrer/w1thermsensor
+    # see https://github.com/timofurrer/w1thermsensor
     # One Wire
     return 0.0
 
 def get_temperature_external():
     """Returns the temperature of the external HEL-712-U-0-12-00 sensor in degree Celsius"""
     # see  http://www.mouser.de/ProductDetail/Honeywell/HEL-712-U-0-12-00/?qs=%2Ffq2y7sSKcIJdgTbHPcmcA%3D%3D
-    # Analog
-    return 0.0
+    # calibrate & convert
+    
+    raw_temp = get_adc(SENSOR_ADC_CHANNEL_EXTERNAL_TEMPERATURE, gain=TBD)
+    offset = 0.0
+    coefficient = 1.0
+    exponent = 1.0
+    external_temperature = offset + coefficient * raw_temp ** exponent
+
+    return external_temperature
 
 def get_pressure():
     """Returns the pressure from the AP40N-200KG-Stick pressure sensor"""
     # see http://shop.pewatron.com/search/ap40r-200kg-stick-drucksensor.
-    # for BMP180, see http://www.cs.unca.edu/~brock/classes/Spring2014/csci320/labs/csci320/bmp180json.py
-    # I2C Slave Address 0x28
+    # for BMP180, see
+    # https://github.com/adafruit/Adafruit_Python_BMP
+    # and
+    # http://www.cs.unca.edu/~brock/classes/Spring2014/csci320/labs/csci320/bmp180json.py
+    # and 
+    # http://www.raspberrypi-spy.co.uk/2015/04/bmp180-i2c-digital-barometric-pressure-sensor/
+    # I2C Slave Address 0x28 (not certain)
+    # SENSOR_ID_PRESSURE
     return 0.0
     
 def get_motion_data():
@@ -36,12 +49,16 @@ def get_motion_data():
     # likely a separate thread with a high polling rate (but mind i2c collisions; maybe use second I2C interface just for this sensor)
     # see https://www.sparkfun.com/products/13284
     # https://cdn.sparkfun.com/assets/learn_tutorials/3/7/3/LSM9DS1_Datasheet.pdf
+    # SENSOR_ID_MOTION
+    return {}
     
 def get_GPS_data():
     """Return GPS position, altitude, meta-data, and raw NMEA details (number of satelites etc.)"""
     # rate of ascent/ descent
     # see http://www.watterott.com/de/ublox-max-6-max-7-GPS-breakout
     # UART or I2C
+    # might become a dedicated thread / process and then this routine will communicate with that one
+    # instead of the sensor directly 
     return None
     
 def get_humidty():
@@ -51,6 +68,8 @@ def get_humidty():
     # library in case we use Si7006-A20 Temperature and Humidity sensor instead:
     #     https://github.com/automote/Si7006
     # mind temperature compensation, heating, etc.
+    # SENSOR_ID_HUMIDITY 
+    return 0.0
 
 def get_adc(channel, gain=0):
     """Returns voltage at ADC, utility method for other methods"""
@@ -59,6 +78,7 @@ def get_adc(channel, gain=0):
     # Library at https://github.com/adafruit/Adafruit-Raspberry-Pi-Python-Code
     # see also https://learn.adafruit.com/raspberry-pi-analog-to-digital-converters
     # and https://learn.adafruit.com/raspberry-pi-analog-to-digital-converters/ads1015-slash-ads1115
+    # SENSOR_ID_ADC
     return 0.0
         
 def get_battery_status():
@@ -68,5 +88,19 @@ def get_battery_status():
     - Battery temperature (DS18B20)"""
     # Voltage via simple voltage divider and MCP3204 ADC or directly via ADS1115 in the form of a https://www.adafruit.com/product/1085
     # Current via ACS712/714 + OpAmp + MCP3204 ADC or directly via ADS1115 in the form of a https://www.adafruit.com/product/1085
-    # TBD calibration    
+    # TBD calibration
+    raw_voltage = get_adc(SENSOR_ADC_CHANNEL_BATTERY_VOLTAGE, gain=0)
+    voltage_offset = 0.0
+    voltage_coefficient = 1.0
+    voltage_exponent = 1.0
+    battery_voltage = voltage_offset + voltage_coefficient * raw_voltage ** voltage_exponent
 
+    raw_current = get_adc(SENSOR_ADC_CHANNEL_CURRENT, gain= TBD)
+    current_offset = 0.0
+    current_coefficient = 1.0
+    current_exponent = 1.0
+    discharge_current = current_offset + current_coefficient * raw_current ** current_exponent
+        
+    battery_temperature = get_temperature_DS18B20(sensor_id=SENSOR_ID_BATTERY_TEMP)
+    
+    return (battery_voltage, discharge_current, battery_temperature)
