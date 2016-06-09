@@ -74,6 +74,11 @@ def sensor_recording():
 		set LED1= OFF
 	return
 
+def motion_sensor_recording():
+    '''Records and saves the motion sensor data.
+    This is a separate component due to the much higher rate of measurement'''
+    return
+
 def	transmission():
 	# add LED
 	if data_queue not empty:
@@ -100,13 +105,16 @@ def power_monitoring():
     # shut down system in worst case
     # think about how to implement terminate functions for all threads
     # see http://stackoverflow.com/questions/323972/is-there-any-way-to-kill-a-thread-in-python
+    # http://stackoverflow.com/questions/6524459/stopping-a-thread-after-a-certain-amount-of-time
 
 if __name__ == "__main__":
     power_saving_mode = False
     if init():
         # start power monitoring thread 
         # (will shut down non-essential functionality in case of near battery failure and monitor power button)
-        threading.Thread(target=power_monitoring).start()
+        power_monitoring_stop = threading.Event()
+        # see also https://pymotw.com/2/threading/
+        threading.Thread(target=power_monitoring, args=(1, power_monitoring_stop)).start()
         threading.Thread(target=gps_monitoring).start()
         # start image_recording (save in intervals of 5 minutes) thread
         threading.Thread(target=image_recording).start()
