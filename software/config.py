@@ -27,6 +27,7 @@ TRANSMISSION_POWER_DEFAULT = 'high' # low = 0.5 W, high = 1 W
 APRS_ON = True
 APRS_FREQUENCY = 144.800
 APRS_RATE = 60 # one transmission per 60 seconds
+APRS_PATH = "WIDE2-1" # http://www.arhab.org/aprs
 SSTV_ON = True
 SSTV_FREQUENCY = 144.600 (?)
 SSTV_MODE = "r36" # Robot 36
@@ -34,19 +35,29 @@ SSTV_MODE = "r36" # Robot 36
 # Values from https://github.com/hatsunearu/pisstvpp
 SSTV_DELAY = 60 # wait 60 seconds after each transmission
 
-# GPIO pin configuration for secondary cameras
-CAM1_ENABLE_PIN = 1
-CAM1_STATUS_LED_PIN = 1
-CAM2_ENABLE_PIN = 1
-CAM2_STATUS_LED_PIN = 1
-POWER_BUTTON_PIN = 1
-MAIN_STATUS_LED_PIN = 1
+# GPIO pin configuration for 1-wire, secondary cameras, power-on, status LEDs, etc.
+ONE_WIRE_PIN = 7 # GPIO4 for 1-Wire Devices
+POWER_BUTTON_PIN = 37 # GPIO26
+MAIN_STATUS_LED_PIN = 40 # GPIO21
+SECONDARY_STATUS_LED_PIN = 38 # GPIO20
+CAM1_ENABLE_PIN = 29 # GPIO5
+CAM1_STATUS_PIN = 31 # GPIO6
+CAM2_ENABLE_PIN = 33 # GPIO13
+CAM2_STATUS_PIN = 35 # GPIO19
+GPS_STATUS_LED_PIN = 11 # GPIO17
+PIEZO_SPEAKER_PIN = 13 # GPIO27
 
-# GPIO pin configuration for DORJI DRA818V transceiver module
-DRA818_SQ = None # Squelch detection.. Low -> Audio amplifier on 
-DRA818_PTT = 1 # Tx/Rx control pin: Low->TX; High->RX
-DRA818_PD = 1 # Power saving control pin: Low->sleep mode; High->normal mode
-DRA818_HL = 1 # RF Power Selection: Low->0.5W; floated->1W
+# GPIO and UART configuration for DORJI DRA818V transceiver module
+SERIAL_PORT_DRA818 = "/dev/ttyAMA1" # just an example
+DRA818_SQ = 15 # GPIO22, Squelch detection.. Low -> Audio amplifier on 
+DRA818_PTT = 38 # GPIO20, Tx/Rx control pin: Low->TX; High->RX
+DRA818_PD = 36 # GPIO16, Power saving control pin: Low->sleep mode; High->normal mode
+DRA818_HL = 32 # GPIO12, RF Power Selection: Low->0.5W; floated->1W
+# Reserved GPIO pins:
+# GPIO2 / 3: SDA1 I2C
+# GPIO3 / 5: SCL1 I2C
+# GPIO14 / 8: UART TXD
+# GPIO15 / 10: UART RXD
 
 # Directories and filenames
 LOGFILE_DIR = "/logfiles/"

@@ -4,27 +4,27 @@
 # basically just a notepad of requirements and ideas
 # logging - very important for post-mission analysis
 
+import threading
 import config
 
 def init():
-# Power-On-Self-Test
-# - Battery
-# - Transmiter
-# - Sensors
-# Set system Time / Date according to GPS, see also http://www.lammertbies.nl/comm/info/GPS-time.html
-# Logging
+    # Check / create working directories
+    # Power-On-Self-Test
+    # - Turn on logging (sequential number for each run, since we do not have a reliable datetime at this point)
+    # - CPU Temperature
+    # - Sensors available
+    # - Battery voltage, current, temperature
+    # - Sensor readings in reasonable intervals    
+    # - Transmitter available
+    # - GPS available + signal
+    # - Set system Time / Date according to GPS, see also http://www.lammertbies.nl/comm/info/GPS-time.html
+    # - Camera 1 available and reasonable image
+    # - Camera 2 power on and wait for handshake
+    # - Camera 3 power on and wait for handshake
+    # - Send start-up message via APRS twice with no digipeating (No path)
 	pass
 	return
 
-def run():
-    power_saving_mode = False
-    # start videoRecording (save in intervals of 5 minutes) thread
-    # start measurement thread
-    # start telemetry and sstv thread
-    # start power monitoring thread (will shut down non-essential functionality in case of near battery failure and monitor power button)
-	pass
-	return
-    
 def gps_monitoring():
     '''Reads GPS device and keeps last position and other data up to date.
     Also updates system clock from GPS time stamp.'''
@@ -96,3 +96,27 @@ def power_monitoring():
 	# maybe in several steps (first reduce SSTV power, then SSTV rate, then turn SSTV off, then reduce data frequency, then reduce data power, then only GPS with high power every 15 minutes, then shut down all systems 
     # also handle power on / off button, maybe use events, see http://raspi.tv/2013/how-to-use-interrupts-with-python-on-the-raspberry-pi-and-rpi-gpio-part-3
     # and http://stackoverflow.com/questions/16143842/raspberry-pi-gpio-events-in-python
+    # monitor system health and indicate errors via LED and / or piezo buzzer
+    # shut down system in worst case
+    # think about how to implement terminate functions for all threads
+    # see http://stackoverflow.com/questions/323972/is-there-any-way-to-kill-a-thread-in-python
+
+if __name__ == "__main__":
+    power_saving_mode = False
+    if init():
+        # start power monitoring thread 
+        # (will shut down non-essential functionality in case of near battery failure and monitor power button)
+        threading.Thread(target=power_monitoring).start()
+        threading.Thread(target=gps_monitoring).start()
+        # start image_recording (save in intervals of 5 minutes) thread
+        threading.Thread(target=image_recording).start()
+        # start measurement thread
+        threading.Thread(target=sensor_recording).start()
+        # start telemetry and sstv thread
+        threading.Thread(target=transmission).start()
+    else:
+        while True:
+            # Fatal Error LED signal
+            # Beep
+            # shutdown upon keypress or after time interval
+
