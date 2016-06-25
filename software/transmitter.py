@@ -7,11 +7,20 @@ from config import *
 
 def init():
     '''Initialize and self-test transceiver module'''
+    # Filter and pre-emphasis settings, see also http://www.febo.com/packet/layer-one/transmit.html
+    # Also see https://github.com/LZ1PPL/VSTv2/blob/master/VSTv2.ino
+    # and https://github.com/darksidelemm/dra818/blob/master/DRA818/DRA818.cpp
+    # and https://github.com/darksidelemm/dra818/blob/master/DRA818/examples/DRA818_Basic/DRA818_Basic.ino
     return
     
 def send_aprs(aprs_message, power_level = TRANSMISSION_POWER_DEFAULT):
     '''Tunes transceiver to APRS frequency, converts the APRS message to audio, and transmits the audio'''
     transmission_status = False
+    # when comverting APRS string to audio using Bell 202, mind the 
+    # pre-emphasis problems, see pre-emphasis settings, see also http://www.febo.com/packet/layer-one/transmit.html
+    # also think about software-based volume / modulation control
+    # maybe using ALSA via Python wrapper, see e.g. http://larsimmisch.github.io/pyalsaaudio/pyalsaaudio.html#alsa-and-python
+    # also see http://www.forum-raspberrypi.de/Thread-suche-python-befehl-fuer-den-alsa-amixer
     # initialize module - set frequency, modulation width, ...
     # DRA818_SQ = None # Squelch detection.. Low -> Audio amplifier on 
     # DRA818_PTT = 1 # Tx/Rx control pin: Low->TX; High->RX

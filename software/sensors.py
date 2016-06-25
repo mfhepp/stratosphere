@@ -68,6 +68,7 @@ def get_humidty():
     # library in case we use Si7006-A20 Temperature and Humidity sensor instead:
     #     https://github.com/automote/Si7006
     # mind temperature compensation, heating, etc.
+    # see also https://github.com/dalexgray/RaspberryPI_HTU21DF
     # SENSOR_ID_HUMIDITY 
     return 0.0
 
@@ -88,8 +89,9 @@ def get_battery_status():
     - Battery temperature (DS18B20)"""
     # Voltage via simple voltage divider and MCP3204 ADC or directly via ADS1115 in the form of a https://www.adafruit.com/product/1085
     # Current via ACS712/714 + OpAmp + MCP3204 ADC or directly via ADS1115 in the form of a https://www.adafruit.com/product/1085
-    # TBD calibration
+    # TBD calibration, see also https://cdn-learn.adafruit.com/downloads/pdf/calibrating-sensors.pdf
     raw_voltage = get_adc(SENSOR_ADC_CHANNEL_BATTERY_VOLTAGE, gain=0)
+    # Simple Exponential Regression model for calibration
     voltage_offset = 0.0
     voltage_coefficient = 1.0
     voltage_exponent = 1.0

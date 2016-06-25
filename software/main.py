@@ -8,9 +8,12 @@ import threading
 import config
 
 def init():
+    # Check volume for data (USB)
     # Check / create working directories
+    # Search for GPS device on all serial ports at 4800 and 9600 bps
+    # Search for UART of DRA818V transceiver on remaining ports
     # Power-On-Self-Test
-    # - Turn on logging (sequential number for each run, since we do not have a reliable datetime at this point)
+    # - Turn on logging (sequential number for each run, since we do not have a reliable date at this point)
     # - CPU Temperature
     # - Sensors available
     # - Battery voltage, current, temperature
@@ -28,6 +31,7 @@ def init():
 def gps_monitoring():
     '''Reads GPS device and keeps last position and other data up to date.
     Also updates system clock from GPS time stamp.'''
+
     # Also log all raw NMEA packets with system timestamp in file
     # Also use LED indicator when GPS has receiption (condition tbd; maybe blink whenever new valid position is received)
     return
@@ -97,7 +101,7 @@ def	transmission():
     # See also http://www.aprs.net/vm/DOS/AIRCRAFT.HTM
 
 def power_monitoring():
-	# turn off optional components and tasks if power goes down
+	# turn off optional components and tasks if power goes down (tbd: the main Pi can't actually turn off devices)
 	# maybe in several steps (first reduce SSTV power, then SSTV rate, then turn SSTV off, then reduce data frequency, then reduce data power, then only GPS with high power every 15 minutes, then shut down all systems 
     # also handle power on / off button, maybe use events, see http://raspi.tv/2013/how-to-use-interrupts-with-python-on-the-raspberry-pi-and-rpi-gpio-part-3
     # and http://stackoverflow.com/questions/16143842/raspberry-pi-gpio-events-in-python
