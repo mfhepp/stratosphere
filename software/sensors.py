@@ -1,26 +1,28 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 # sensors.py
 # Library for accessing the sensors of our probe
 # tbd: super-robust error handling
 # i2c docs e.g. from http://www.raspberry-projects.com/pi/programming-in-python/i2c-programming-in-python/using-the-i2c-interface-2
 
 import config
+from w1thermsensor import W1ThermSensor
 
 def get_temperature_cpu():
     """Returns the temperature of the Raspberry CPU in degree Celsius"""
     # Internal, see https://cae2100.wordpress.com/2012/12/29/reading-cpu-temps-using-python-for-raspberry-pi/
     return 0.0
-    
+
 def get_temperature_DS18B20(sensor_id=''):
     """Returns the temperature of the given DS18B20 sensor in degree Celsius"""
-    # see https://github.com/timofurrer/w1thermsensor
-    # One Wire
-    return 0.0
+    sensor = W1ThermSensor(W1ThermSensor.THERM_SENSOR_DS18B20, sensor_id)
+    return sensor.get_temperature()
 
 def get_temperature_external():
     """Returns the temperature of the external HEL-712-U-0-12-00 sensor in degree Celsius"""
     # see  http://www.mouser.de/ProductDetail/Honeywell/HEL-712-U-0-12-00/?qs=%2Ffq2y7sSKcIJdgTbHPcmcA%3D%3D
     # calibrate & convert
-    
     raw_temp = get_adc(SENSOR_ADC_CHANNEL_EXTERNAL_TEMPERATURE, gain=TBD)
     offset = 0.0
     coefficient = 1.0
@@ -36,12 +38,12 @@ def get_pressure():
     # https://github.com/adafruit/Adafruit_Python_BMP
     # and
     # http://www.cs.unca.edu/~brock/classes/Spring2014/csci320/labs/csci320/bmp180json.py
-    # and 
+    # and
     # http://www.raspberrypi-spy.co.uk/2015/04/bmp180-i2c-digital-barometric-pressure-sensor/
     # I2C Slave Address 0x28 (not certain)
     # SENSOR_ID_PRESSURE
     return 0.0
-    
+
 def get_motion_data():
     """Returns all data from the 9 degrees of freedom sensor LSM9DS1"""
     # tbd: Poll rate, format of returned data
@@ -51,16 +53,16 @@ def get_motion_data():
     # https://cdn.sparkfun.com/assets/learn_tutorials/3/7/3/LSM9DS1_Datasheet.pdf
     # SENSOR_ID_MOTION
     return {}
-    
+
 def get_GPS_data():
     """Return GPS position, altitude, meta-data, and raw NMEA details (number of satelites etc.)"""
     # rate of ascent/ descent
     # see http://www.watterott.com/de/ublox-max-6-max-7-GPS-breakout
     # UART or I2C
     # might become a dedicated thread / process and then this routine will communicate with that one
-    # instead of the sensor directly 
+    # instead of the sensor directly
     return None
-    
+
 def get_humidty():
     """Returns data from the HTU21D humidity sensors inside and outside the probe"""
     # see http://www.exp-tech.de/sparkfun-feuchtesensor-breakout-htu21d
@@ -69,7 +71,7 @@ def get_humidty():
     #     https://github.com/automote/Si7006
     # mind temperature compensation, heating, etc.
     # see also https://github.com/dalexgray/RaspberryPI_HTU21DF
-    # SENSOR_ID_HUMIDITY 
+    # SENSOR_ID_HUMIDITY
     return 0.0
 
 def get_adc(channel, gain=0):
@@ -81,7 +83,7 @@ def get_adc(channel, gain=0):
     # and https://learn.adafruit.com/raspberry-pi-analog-to-digital-converters/ads1015-slash-ads1115
     # SENSOR_ID_ADC
     return 0.0
-        
+
 def get_battery_status():
     """Returns  battery status information, like
     - Voltage
@@ -102,7 +104,7 @@ def get_battery_status():
     current_coefficient = 1.0
     current_exponent = 1.0
     discharge_current = current_offset + current_coefficient * raw_current ** current_exponent
-        
+
     battery_temperature = get_temperature_DS18B20(sensor_id=SENSOR_ID_BATTERY_TEMP)
-    
+
     return (battery_voltage, discharge_current, battery_temperature)

@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 # main.py
 # main routines for balloon probe
 # very early, pseudocode-style sketch at this point
@@ -8,6 +11,11 @@ import threading
 import config
 
 def init():
+    # Set GPIO pins properly, in particular those for the camera satellite units
+        # CAM1_ENABLE_PIN = 29 # GPIO5
+        # CAM1_STATUS_PIN = 31 # GPIO6
+        # CAM2_ENABLE_PIN = 33 # GPIO13
+        # CAM2_STATUS_PIN = 35 # GPIO19
     # Check volume for data (USB)
     # Check / create working directories
     # Search for GPS device on all serial ports at 4800 and 9600 bps
@@ -23,7 +31,11 @@ def init():
     # - Set system Time / Date according to GPS, see also http://www.lammertbies.nl/comm/info/GPS-time.html
     # - Camera 1 available and reasonable image
     # - Camera 2 power on and wait for handshake
+        # CAM1_ENABLE_PIN = 29 # GPIO5, low for > 1 sec.
+        # CAM1_STATUS_PIN = 31 # GPIO6, high = running
     # - Camera 3 power on and wait for handshake
+        # CAM2_ENABLE_PIN = 33 # GPIO13, low for > 1 sec.
+        # CAM2_STATUS_PIN = 35 # GPIO19, high = running  
     # - Send start-up message via APRS twice with no digipeating (No path)
 	pass
 	return
@@ -112,6 +124,15 @@ def power_monitoring():
     # http://stackoverflow.com/questions/6524459/stopping-a-thread-after-a-certain-amount-of-time
 
 if __name__ == "__main__":
+    # configure logging
+    FORMAT = '%(asctime)-15s %(levelname)10s:  %(message)s'
+    # log to a file
+    logging.basicConfig(filename=os.path.join(USB_DIR, "main.log"), level=logging.DEBUG, format=FORMAT)
+    # log to standard output as well
+    std_logger = logging.StreamHandler()
+    std_logger.setFormatter(logging.Formatter(FORMAT))
+    logging.getLogger().addHandler(std_logger)
+    
     power_saving_mode = False
     if init():
         # start power monitoring thread 

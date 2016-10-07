@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 # transmitter.py
 # routines for initializing and controlling the DRA818V transceiver module
 # see also https://github.com/darksidelemm/dra818/blob/master/DRA818/DRA818.cpp
@@ -12,17 +15,17 @@ def init():
     # and https://github.com/darksidelemm/dra818/blob/master/DRA818/DRA818.cpp
     # and https://github.com/darksidelemm/dra818/blob/master/DRA818/examples/DRA818_Basic/DRA818_Basic.ino
     return
-    
+
 def send_aprs(aprs_message, power_level = TRANSMISSION_POWER_DEFAULT):
     '''Tunes transceiver to APRS frequency, converts the APRS message to audio, and transmits the audio'''
     transmission_status = False
-    # when comverting APRS string to audio using Bell 202, mind the 
+    # when comverting APRS string to audio using Bell 202, mind the
     # pre-emphasis problems, see pre-emphasis settings, see also http://www.febo.com/packet/layer-one/transmit.html
     # also think about software-based volume / modulation control
     # maybe using ALSA via Python wrapper, see e.g. http://larsimmisch.github.io/pyalsaaudio/pyalsaaudio.html#alsa-and-python
     # also see http://www.forum-raspberrypi.de/Thread-suche-python-befehl-fuer-den-alsa-amixer
     # initialize module - set frequency, modulation width, ...
-    # DRA818_SQ = None # Squelch detection.. Low -> Audio amplifier on 
+    # DRA818_SQ = None # Squelch detection.. Low -> Audio amplifier on
     # DRA818_PTT = 1 # Tx/Rx control pin: Low->TX; High->RX
     # DRA818_PD = 1 # Power saving control pin: Low->sleep mode; High->normal mode
     # DRA818_HL = 1 # RF Power Selection: Low->0.5W; floated->1W
@@ -31,13 +34,13 @@ def send_aprs(aprs_message, power_level = TRANSMISSION_POWER_DEFAULT):
     # send audio
     # wait
     # stop transmission
-    return transmission_status 
-    
+    return transmission_status
+
 def send_sstv(image_filename, power_level = TRANSMISSION_POWER_DEFAULT):
     '''Tunes transceiver to SSTV frequency and transmits the image from the given filename'''
     transmission_status = False
     # initialize module - set frequency, modulation width, ...
-    # DRA818_SQ = None # Squelch detection.. Low -> Audio amplifier on 
+    # DRA818_SQ = None # Squelch detection.. Low -> Audio amplifier on
     # DRA818_PTT = 1 # Tx/Rx control pin: Low->TX; High->RX
     # DRA818_PD = 1 # Power saving control pin: Low->sleep mode; High->normal mode
     # DRA818_HL = 1 # RF Power Selection: Low->0.5W; floated->1W
@@ -52,16 +55,16 @@ def send_sstv(image_filename, power_level = TRANSMISSION_POWER_DEFAULT):
     # Martin 1: m1 / Martin 2: m2 / Scottie 1: s1 / Scottie 2: s2 / Scottie DX: sdx / Robot 36: r36
     # Values from https://github.com/hatsunearu/pisstvpp
     # SSTV_DELAY = 60 # wait 60 seconds after each transmission
-    return transmission_status 
+    return transmission_status
 
 def generate_aprs_telemetry_config():
     '''Creates Base91 Comment Telemetry message (units, labels, ...)'''
     return ""
-    
+
 def generate_aprs(tbd):
     '''Generate APRS string'''
     # increment counter and  make sure that it and all of the telemetry values never get values higher than 8280
-    
+
     # Position lat, long, altitude
     # Raw NMEA strings (particular number of satellites)
     # Ground speed (maybe via NMEA)
