@@ -5,7 +5,6 @@
 # routines for initializing and controlling the DRA818V transceiver module
 # see also https://github.com/darksidelemm/dra818/blob/master/DRA818/DRA818.cpp
 
-
 from config import *
 
 def init():
@@ -81,7 +80,7 @@ def generate_aprs(tbd):
     # Discharge current
     # Ascent / descent rate
     # Battery temperature
-    # Maybe motion data (albeit likely to dynamic for APRS)
+    # Orientation (Compass)
     # Some data could go into plain comment (e.g. battery voltage, current, battery temperature )
     # For humidity, pressure and outside temperature, also the weather format of APRS could be used (tbc)
     return ""

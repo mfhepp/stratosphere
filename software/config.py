@@ -3,7 +3,21 @@
 
 # config.py
 # Configuration settings for the probe and its sensors
+import logging
+import os
+
 USB_DIR = "/media/usbstick/"
+# Test of USB stick is available, if not, try to mount
+# Test if USB stick has at least 30 GB free capacity
+
+# Configure logging
+FORMAT = '%(asctime)-15s %(levelname)10s:  %(message)s'
+# Log to a file
+logging.basicConfig(filename=os.path.join(USB_DIR, "main.log"), level=logging.DEBUG, format=FORMAT)
+# Log to standard output as well
+std_logger = logging.StreamHandler()
+std_logger.setFormatter(logging.Formatter(FORMAT))
+logging.getLogger().addHandler(std_logger)
 
 # GPS
 SERIAL_PORT_GPS = "/dev/ttyUSB0"  # just an example
