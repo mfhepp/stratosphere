@@ -123,6 +123,10 @@ def power_monitoring():
     # see http://stackoverflow.com/questions/323972/is-there-any-way-to-kill-a-thread-in-python
     # http://stackoverflow.com/questions/6524459/stopping-a-thread-after-a-certain-amount-of-time
 
+def start_secondary_cameras():
+    # https://bitbucket.org/alexstolz/strato_media
+    return
+    
 if __name__ == "__main__":
     # configure logging
     FORMAT = '%(asctime)-15s %(levelname)10s:  %(message)s'
