@@ -17,6 +17,7 @@ def init():
 
 def send_aprs(aprs_message, power_level = TRANSMISSION_POWER_DEFAULT):
     '''Tunes transceiver to APRS frequency, converts the APRS message to audio, and transmits the audio'''
+    # - nach PTT-Tastung liegt Vorlaufzeit bis zum Erreichen der vollen TX-Sendebereitschaft bei etwa 1 Sekunde
     transmission_status = False
     # when comverting APRS string to audio using Bell 202, mind the
     # pre-emphasis problems, see pre-emphasis settings, see also http://www.febo.com/packet/layer-one/transmit.html

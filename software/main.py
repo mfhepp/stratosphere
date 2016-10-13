@@ -10,7 +10,6 @@
 import os
 import sys
 import time
-import threading
 import multiprocessing as mp
 import subprocess
 import datetime as dt
@@ -24,6 +23,7 @@ import sensors
 import gps_info
 
 def init():
+    ok = True
     logging.info("Self-test started.")
     # Set GPIO pins properly, in particular those for the camera satellite units
     GPIO.setmode(GPIO.BOARD)
@@ -91,6 +91,7 @@ def init():
                     logging.info("Transceiver found.")
                     break
         else:
+            ok = False
             logging.critical("CRITICAL: Transceiver NOT found.")
 
     # Initialize Transceiver
@@ -109,6 +110,7 @@ def init():
     if tx_response == "+DMOCONNECT: 0":
          logging.info("Transceiver initialization OK")
     else:
+        ok = False
         logging.debug("ERROR: Transceiver initialization failed")
     # SETFILTER Command
     # AT+SETFILTER=PRE/DE-EMPH,Highpass,Lowpass <CR><LF>
@@ -120,6 +122,7 @@ def init():
     if tx_response == "+DMOCONNECT: 0":
          logging.info("Transceiver filter configuration OK")
     else:
+        ok = False
         logging.debug("ERROR: Transceiver filter configuration failed")
 
     # Test Sensors
@@ -127,12 +130,14 @@ def init():
     if -5 < internal_temp < 40:
         logging.info("Internal temperature: %.2f" % internal_temp)
     else:
+        ok = False
         logging.debug("WARNING: Internal temperature: %.2f" % internal_temp)
         
     external_temp = sensors.get_temperature_DS18B20(config.SENSOR_ID_EXTERNAL_TEMP)
     if -10 < external_temp < 40:
         logging.info("External temperature: %.2f" % external_temp)
     else:
+        ok = False
         logging.debug("WARNING: External temperature: %.2f" % external_temp)
     
     # TBD: Redundant, but nice to have as long as the other sensor functions are just boilerplate code
@@ -140,24 +145,28 @@ def init():
     if 10 < battery_temp < 40:
         logging.info("Battery temperature: %.2f" % battery_temp)
     else:
+        ok = False
         logging.debug("WARNING: Battery temperature: %.2f" % battery_temp)
         
     cpu_temp = sensors.get_temperature_cpu()
     if 10 < cpu_temp < 40:
         logging.info("CPU temperature: %.2f" % cpu_temp)
     else:
+        ok = False
         logging.debug("WARNING: CPU temperature: %.2f" % cpu_temp)
 
     external_temp_ADC = sensors.get_temperature_external()
     if -10 < external_temp_ADC < 40:
         logging.info("External temperature from ADC: %.2f" % external_temp_ADC)
     else:
+        ok = False
         logging.debug("WARNING: External temperature from ADC: %.2f" % external_temp_ADC)
 
     atmospheric_pressure = get_pressure()
     if 900 < atmospheric_pressure < 1200:
         logging.info("Atmospheric pressure: %.2f" % atmospheric_pressure)
     else:
+        ok = False
         logging.debug("WARNING: Atmospheric pressure: %.2f" % atmospheric_pressure)
     
     # Relative humidity, https://en.wikipedia.org/wiki/Relative_humidity
@@ -165,34 +174,40 @@ def init():
     if 0 < humidity_internal < 1:
         logging.info("Internal relative humidity: %.2f %%" % humidity_internal*100)
     else:
+        ok = False
         logging.debug("WARNING: Internal relative humidity: %.2f %%" % humidity_internal*100)
         
     if 0 < humidity_external < 1:
         logging.info("External relative humidity: %.2f %%" % humidity_external*100)
     else:
+        ok = False
         logging.debug("WARNING: External relative humidity: %.2f %%" % humidity_external*100)
     
     motion_sensor_status, motion_sensor_message = get_motion_sensor_status()
     if motion_sensor_status:
             logging.info("Motion sensor OK, current values: %s" % motion_sensor_message)
-        else:
-            logging.debug("WARNING: Motion sensor FAILED, current values: %s" % motion_sensor_message)
+    else:
+        ok = False
+        logging.debug("WARNING: Motion sensor FAILED, current values: %s" % motion_sensor_message)
 
     # Test Battery Voltage + Current
     battery_voltage, discharge_current, battery_temp = get_battery_status()
     if battery_voltage > 11:
         logging.info("Battery voltage: %.2f V" % battery_voltage)
     else:
+        ok = False
         logging.debug("WARNING: Battery voltage: %.2f V" % battery_voltage)
         
     if 0.1 < discharge_current < 0.75
         logging.info("Discharge current: %.4f A" % discharge_current)
     else:
+        ok = False
         logging.debug("WARNING: Discharge current: %.4f A" % discharge_current)
         
     if 10 < battery_temp < 40:
         logging.info("Battery temperature: %.2f" % battery_temp)
     else:
+        ok = False
         logging.debug("WARNING: Battery temperature: %.2f" % battery_temp)
     
     # Test if GPS is available
@@ -202,11 +217,18 @@ def init():
             logging.info("GPS found at %s with %4i baud" % (device, baud))
             break
     else:
+        ok = False
         logging.debug("CRITICIAL: No GPS device found!")
         
+    # TBD: Set GPS to FLIGHT mode
+    for attempts in range(5):
+        if gps_infoset_to_flight_mode():
+            break
+    else:
+        ok = False
+        logging.debug('ERROR: Failed to set GPS to flight mode.')
 
-
-    return
+    return ok
 
 
 def update_gps_info(timestamp, altitude, latitude, longitude):
