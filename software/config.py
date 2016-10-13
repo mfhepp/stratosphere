@@ -5,8 +5,18 @@
 # Configuration settings for the probe and its sensors
 import logging
 import os
+import RPi.GPIO as GPIO
 
-USB_DIR = "/media/usbstick/"
+# Directories and filenames
+USB_DIR = "/media/usbstick/"  # This is the mounting point of the external USB stick
+LOGFILE_DIR = "/logfiles/"
+VIDEO_DIR = "/videos/"
+IMAGE_DIR = "/still_images/"
+SSTV_DIR = "/sstv/"
+DATA_DIR = "/data/"
+
+DISK_SPACE_MINIMUM = 16*1024*1024*1024  # 16 GB
+
 # Test of USB stick is available, if not, try to mount
 # Test if USB stick has at least 30 GB free capacity
 
@@ -21,6 +31,7 @@ logging.getLogger().addHandler(std_logger)
 
 # GPS
 SERIAL_PORT_GPS = "/dev/ttyUSB0"  # just an example
+GPS_POLLTIME = 2 # in seconds
 GPS_ALTITUDE_MODE_CEILING = 10000
 # Altitude at which GPS will be switched to Airborne-6 mode
 # with <1g Acceleration; TBD
@@ -62,7 +73,14 @@ SENSOR_ADC_CHANNEL_CURRENT = 2
 # Transceiver
 CALLSIGN = "DL0UBW" # insert your mission callsign
 APRS_SSID = CALLSIGN + "-11"
-TRANSMISSION_POWER_DEFAULT = 'high' # low = 0.5 W, high = 1 W
+TRANSMISSION_POWER_DEFAULT = GPIO.LOW # low = 0.5 W, high = 1 W
+PRE_EMPHASIS = 0 # Whether or not we use pre-emphasis for transmitting APRS and SSTV
+# 0 turn on;1 turn off
+# mainly depends on whether the receiving devices use de-emphasis or not
+# See http://www.tapr.org/pipermail/aprssig/2009-October/031608.html
+HIGH_PASS = 1  # 0 turn on;1 turn off
+LOW_PASS = 1  # 0 turn on;1 turn off
+SQUELCH = 0  # squelch level 0-8, will save power to be set to 8 in altitude but useful at 0 for debugging
 APRS_ON = True
 APRS_FREQUENCY = 144.800
 APRS_RATE = 60 # one transmission per 60 seconds
@@ -108,9 +126,3 @@ DRA818_HL = 32 # GPIO12, RF Power Selection: Low->0.5W; floated->1W
 # GPIO14 / 8: UART TXD
 # GPIO15 / 10: UART RXD
 
-# Directories and filenames
-LOGFILE_DIR = "/logfiles/"
-VIDEO_DIR = "/videos/"
-IMAGE_DIR = "/still_images/"
-SSTV_DIR = "/sstv/"
-DATA_DIR = "/data/"

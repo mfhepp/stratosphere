@@ -16,14 +16,12 @@ import subprocess
 import datetime as dt
 
 import serial
-import gps_info
-
 import serial.tools.list_ports
 import RPi.GPIO as GPIO
 
 from config import *
 import sensors
-
+import gps_info
 
 def init():
     logging.info("Self-test started.")
@@ -95,53 +93,125 @@ def init():
         else:
             logging.critical("CRITICAL: Transceiver NOT found.")
 
-    # TBD: Initialize Transceiver
-    # GROUP SETTING Command (SSTV Frequency)
+    # Initialize Transceiver
+    GPIO.output(DRA818_PTT, GPIO.HIGH)  # Tx/Rx control pin: Low->TX; High->RX
+    GPIO.output(DRA818_PD, GPIO.HIGH)  # Power saving control pin: Low->sleep mode; High->normal mode
+    GPIO.output(DRA818_HL, TRANSMISSION_POWER_DEFAULT)  # RF Power Selection: Low->0.5W; floated->1W
+    time.sleep(1)
+    # GROUP SETTING Command
+    # T+DMOSETGROUP=GBW,TFV, RFV,Tx_CTCSS,SQ,Rx_CTCSS<CR><LF>
+    # We initially use the SSTV frequency in order to have any spurious 
+    # emissions not on the APRS frequency
+    command = "AT+DMOSETGROUP=0,%3.4f,%3.4f,0,%i,0\r\n" % (SSTV_FREQUENCY, SSTV_FREQUENCY, SQUELCH)
+    tx_ser.write(command)
+    tx_response = ser.readline().strip()
+    logging.info('Transceiver response: %s' % tx_response)
+    if tx_response == "+DMOCONNECT: 0":
+         logging.info("Transceiver initialization OK")
+    else:
+        logging.debug("ERROR: Transceiver initialization failed")
     # SETFILTER Command
+    # AT+SETFILTER=PRE/DE-EMPH,Highpass,Lowpass <CR><LF>
+    # Note: In the datasheet, there is an extra space after the + sign, but I assume this is in error
+    command = "AT+SETFILTER=%1i,%1i,%1i\r\n" % (PRE_EMPHASIS, HIGH_PASS, LOW_PASS)
+    tx_ser.write(command)
+    tx_response = ser.readline().strip()
+    logging.info('Transceiver response: %s' % tx_response)
+    if tx_response == "+DMOCONNECT: 0":
+         logging.info("Transceiver filter configuration OK")
+    else:
+        logging.debug("ERROR: Transceiver filter configuration failed")
+
+    # Test Sensors
+    internal_temp = sensors.get_temperature_DS18B20(config.SENSOR_ID_INTERNAL_TEMP)
+    if -5 < internal_temp < 40:
+        logging.info("Internal temperature: %.2f" % internal_temp)
+    else:
+        logging.debug("WARNING: Internal temperature: %.2f" % internal_temp)
+        
+    external_temp = sensors.get_temperature_DS18B20(config.SENSOR_ID_EXTERNAL_TEMP)
+    if -10 < external_temp < 40:
+        logging.info("External temperature: %.2f" % external_temp)
+    else:
+        logging.debug("WARNING: External temperature: %.2f" % external_temp)
     
-    # TBD Test Sensors
+    # TBD: Redundant, but nice to have as long as the other sensor functions are just boilerplate code
+    battery_temp = sensors.get_temperature_DS18B20(config.SENSOR_ID_BATTERY_TEMP)
+    if 10 < battery_temp < 40:
+        logging.info("Battery temperature: %.2f" % battery_temp)
+    else:
+        logging.debug("WARNING: Battery temperature: %.2f" % battery_temp)
+        
+    cpu_temp = sensors.get_temperature_cpu()
+    if 10 < cpu_temp < 40:
+        logging.info("CPU temperature: %.2f" % cpu_temp)
+    else:
+        logging.debug("WARNING: CPU temperature: %.2f" % cpu_temp)
+
+    external_temp_ADC = sensors.get_temperature_external()
+    if -10 < external_temp_ADC < 40:
+        logging.info("External temperature from ADC: %.2f" % external_temp_ADC)
+    else:
+        logging.debug("WARNING: External temperature from ADC: %.2f" % external_temp_ADC)
+
+    atmospheric_pressure = get_pressure()
+    if 900 < atmospheric_pressure < 1200:
+        logging.info("Atmospheric pressure: %.2f" % atmospheric_pressure)
+    else:
+        logging.debug("WARNING: Atmospheric pressure: %.2f" % atmospheric_pressure)
     
-    # TBD Test Battery Voltage + Current
+    # Relative humidity, https://en.wikipedia.org/wiki/Relative_humidity
+    humidity_internal, humidity_external = get_humidity()
+    if 0 < humidity_internal < 1:
+        logging.info("Internal relative humidity: %.2f %%" % humidity_internal*100)
+    else:
+        logging.debug("WARNING: Internal relative humidity: %.2f %%" % humidity_internal*100)
+        
+    if 0 < humidity_external < 1:
+        logging.info("External relative humidity: %.2f %%" % humidity_external*100)
+    else:
+        logging.debug("WARNING: External relative humidity: %.2f %%" % humidity_external*100)
+    
+    motion_sensor_status, motion_sensor_message = get_motion_sensor_status()
+    if motion_sensor_status:
+            logging.info("Motion sensor OK, current values: %s" % motion_sensor_message)
+        else:
+            logging.debug("WARNING: Motion sensor FAILED, current values: %s" % motion_sensor_message)
+
+    # Test Battery Voltage + Current
+    battery_voltage, discharge_current, battery_temp = get_battery_status()
+    if battery_voltage > 11:
+        logging.info("Battery voltage: %.2f V" % battery_voltage)
+    else:
+        logging.debug("WARNING: Battery voltage: %.2f V" % battery_voltage)
+        
+    if 0.1 < discharge_current < 0.75
+        logging.info("Discharge current: %.4f A" % discharge_current)
+    else:
+        logging.debug("WARNING: Discharge current: %.4f A" % discharge_current)
+        
+    if 10 < battery_temp < 40:
+        logging.info("Battery temperature: %.2f" % battery_temp)
+    else:
+        logging.debug("WARNING: Battery temperature: %.2f" % battery_temp)
+    
+    # Test if GPS is available
+    for i in range(10):
+        device, baud = gps_info.get_device_settings()
+        if device != None and baud != None:
+            logging.info("GPS found at %s with %4i baud" % (device, baud))
+            break
+    else:
+        logging.debug("CRITICIAL: No GPS device found!")
+        
+
 
     return
 
 
-
-# GPIO and UART configuration for DORJI DRA818V transceiver module
-# OK, checked
-SERIAL_PORT_TRANSCEIVER = "/dev/ttyAMA0" # just an example
-DRA818_PTT = 38 # GPIO20, Tx/Rx control pin: Low->TX; High->RX
-DRA818_PD = 36 # GPIO16, Power saving control pin: Low->sleep mode; High->normal mode
-DRA818_HL = 32 # GPIO12, RF Power Selection: Low->0.5W; floated->1W
-
-
-    
-    # Check volume for data (USB)
-    # Check / create working directories
-    # Search for GPS device on all serial ports at 4800 and 9600 bps
-    # Search for UART of DRA818V transceiver on remaining ports
-    # Power-On-Self-Test
-    # - Turn on logging (sequential number for each run, since we do not have a reliable date at this point)
-    # - CPU Temperature
-    # - Sensors available
-    # - Battery voltage, current, temperature
-    # - Sensor readings in reasonable intervals
-    # - Transmitter available
-    # - GPS available + signal
-    # - Set system Time / Date according to GPS, see also http://www.lammertbies.nl/comm/info/GPS-time.html
-    # - Camera 1 available and reasonable image
-    # - Camera 2 power on and wait for handshake
-        # CAM1_ENABLE_PIN = 29 # GPIO5, low for > 1 sec.
-        # CAM1_STATUS_PIN = 31 # GPIO6, high = running
-    # - Camera 3 power on and wait for handshake
-        # CAM2_ENABLE_PIN = 33 # GPIO13, low for > 1 sec.
-        # CAM2_STATUS_PIN = 35 # GPIO19, high = running
-    # - Send start-up message via APRS twice with no digipeating (No path)
-    pass
-    return
-
-# run in child process
 def update_gps_info(timestamp, altitude, latitude, longitude):
+    '''Method for child process that fetches the GPS data, stores the most recent in global variables, 
+    and writes the raw NMEA data to a separate log'''
     while continue_gps:
         gps_data, datestamp = gps_info.get_info()
         try:
@@ -152,7 +222,7 @@ def update_gps_info(timestamp, altitude, latitude, longitude):
             try:
                 os.system("sudo date --set '%s'" % timestamp.value)
             except Exception as msg_time:
-                logging.debug("could not set the system time")
+                logging.debug("ERROR: Could not set the system time")
                 logging.exception(msg_time)
         except Exception as msg:
             timestamp.value = "01-01-1970T00:00:00Z"
@@ -265,17 +335,61 @@ def power_monitoring():
 
 def start_secondary_cameras():
     # https://bitbucket.org/alexstolz/strato_media
+    # - Camera 1 available and reasonable image
+    # - Camera 2 power on and wait for handshake
+        # CAM1_ENABLE_PIN = 29 # GPIO5, low for > 1 sec.
+        # CAM1_STATUS_PIN = 31 # GPIO6, high = running
+    # - Camera 3 power on and wait for handshake
+        # CAM2_ENABLE_PIN = 33 # GPIO13, low for > 1 sec.
+        # CAM2_STATUS_PIN = 35 # GPIO19, high = running
+    # - Send start-up message via APRS twice with no digipeating (No path)
+    """DONE 4. CTL CAM TOP und CTL CAM BOTTOM verdrahten
+    GPIO17 weiss -> BLACK PIN_BUTTON = 5 # start and shutdown signal
+    GPIO27 gelb --> RED PIN_REC = 7 # start/stop recording
+    GPIO18 grau -> BROWN PIN_ACK = 11 # acknowledge recording state
+    DONE CTL CAM BOTTOM verdrahten
+    GPIO22 weiss -> BLACK PIN_BUTTON = 5 # start and shutdown signal
+    GPIO24 gelb --> RED PIN_REC = 7 # start/stop recording
+    GPIO23 grau -> BROWN PIN_ACK = 11 # acknowledge recording state"""
+
+    CAM1_PWR = 11 # GPIO17
+    CAM1_REC = 13 # GPIO13
+    CAM1_STATUS = 12 # GPIO18
+    CAM2_PWR = 15 # GPIO22
+    CAM2_REC = 18 # GPIO14
+    CAM2_STATUS = 16 # GPIO23
+    return True, True
+    
+def turn_off_usv_charging():
+    '''Turns of the charging function of the S.USV backup, because we do not want to 
+    charge this secondary backup from our primary cells.'''
+    return
+
+def led_blink_process(led_pin, frequency):
+    '''Subprocess for blinking LED '''
+    period = 1./frequency
+    while True:
+        GPIO.output(led_pin, GPIO.HIGH)
+        time.sleep(0.1)
+        GPIO.output(led_pin, GPIO.LOW)
+        time.sleep(period)
     return
 
 def main():
     logging.info("System turned on.")
+    if not DEBUG:
+        turn_off_usv_charging()
+        logging.info("USV charging disabled (ok for actual mission)")
+    else:
+        logging.debug("WARNING: USV charging ENABLED (don't use this for an actual mission")
+
     power_saving_mode = False
     # Test of USB stick is writeable
     try:
         filehandle = open(USB_DIR+"test.txt", 'w' )
     except IOError:
         # this will only be shown on the screen
-        logging.info("ERROR: USB Media missing or write-protected")
+        logging.debug("ERROR: USB Media missing or write-protected")
         logging.info("Trying to mount media.")
         try:
             os.system("sudo ./shell/detect_and_mount_usb.sh")
@@ -285,14 +399,97 @@ def main():
     finally:
         logging.debug("Shutting down system.")
         os.system("sudo shutdown -h now")
+    # Check / create working directories
 
+    folders = [LOGFILE_DIR, VIDEO_DIR, IMAGE_DIR, SSTV_DIR, DATA_DIR]
+    try:
+        for folder in folders:
+            if not os.path.exists(USB_DIR+folder):
+                os.makedirs(USB_DIR+folder)
+                logging.info("Created directory %s" % USB_DIR+folder)
+            else:
+                logging.info("Found directory %s" % USB_DIR+folder)
+    except Exception as msg_time:
+        logging.debug("FATAL: Could not create directories")
+        logging.exception(msg_time)
+    finally:
+        logging.debug("Shutting down system.")
+        os.system("sudo shutdown -h now")
+        
     # Test if USB stick has at least 30 GB free capacity
-    # TBD
-    
+    # http://stackoverflow.com/questions/4260116/find-size-and-free-space-of-the-filesystem-containing-a-given-file
+    st = os.statvfs(path)
+    free = st.f_bavail * st.f_frsize
+    if free > DISK_SPACE_MINIMUM:
+        logging.info("Available space on USB stick: %s GB " % format(float(free)/(1024*1024*1024),',')
+    else:
+        logging.debug("Warning: Available space on USB stick below limit: %s GB " % format(float(free)/(1024*1024*1024),',')
+        
+    # Run power-on-self-test and initialize peripherals
     status_ok = init()
     logging.info("Self-test status success: %s")
+    
+    # Wait for GPS to receive signal
+    # GPS signal
+    # - Set system Time / Date according to GPS, see also http://www.lammertbies.nl/comm/info/GPS-time.html
+    
     if status_ok:
+        # start second and third camera
+        cam1, cam2 = start_secondary_cameras()
+        
         # start blink process for main LED
+        
+        # led_blink_process(led_pin, frequency)
+        p = mp.Process(target=led_blink_process, args=(MAIN_STATUS_LED_PIN, 1))
+        p.start()
+        
+        try:
+            # Start GPS process
+            gps_process = mp.Process(target=update_gps_info, args=(timestamp, altitude, latitude, longitude))
+            gps_process.start()
+            
+            # Start data collection
+            data_collection_process = mp.Process(target=data_collection, args=())
+            data_collection_process.start()
+            
+            # start
+            motion_recording_process = mp.Process(target=motion_recording, args=())
+            motion_recording_process.start()
+            
+            # start power management and power_down switch
+            pwr_management_process = mp.Process(target=pwr_management, args=())
+            pwr_management_process.start()
+            GPIO.add_event_detect(PIN_REC, GPIO.FALLING, bouncetime=500)
+            GPIO.add_event_callback(PIN_REC, start_stop_recording)
+            
+            
+            while True:
+                # 1. record video
+                try:
+                    video_recording(LENGTH_VIDEO, video_params)
+                except Exception as recording_msg:
+                    logging.exception(recording_msg)
+                # 2. capture snapshot
+                try:
+                    take_snapshot(image_params)
+                except Exception as capturing_msg:
+                    logging.exception(capturing_msg)
+
+
+                        if do_shutdown:
+                            bye()
+                            time.sleep(1)
+                            p.terminate()
+                        except Exception as msg:
+                            logging.exception(msg)
+                            GPIO.cleanup()
+                            sys.exit(1)
+
+GPIO.cleanup()
+
+logging.debug("clean exit")
+
+
         
         # Turn on GPS process
         
@@ -303,7 +500,7 @@ def main():
         threading.Thread(target=power_monitoring, args=(1, power_monitoring_stop)).start()
                 
         # Turn on both camera modules
-        
+        start_secondary_cameras():
         # TBC - Okay, up to date
         """DONE 4. CTL CAM TOP und CTL CAM BOTTOM verdrahten
         GPIO17 weiss -> BLACK PIN_BUTTON = 5 # start and shutdown signal

@@ -44,6 +44,13 @@ def get_pressure():
     # SENSOR_ID_PRESSURE
     return 0.0
 
+def get_motion_sensor_status():
+    '''Tests motions sensor'''
+    # enable
+    # read
+    # reasonable
+    return True, "Readings"
+
 def get_motion_data():
     """Returns all data from the 9 degrees of freedom sensor LSM9DS1"""
     # tbd: Poll rate, format of returned data
@@ -63,8 +70,9 @@ def get_GPS_data():
     # instead of the sensor directly
     return None
 
-def get_humidty():
-    """Returns data from the HTU21D humidity sensors inside and outside the probe"""
+def get_humidity():
+    """Returns data from the HTU21D humidity sensors inside and outside the probe
+    in percent (1 = 100 %, 0.1 = 10 %)"""
     # see http://www.exp-tech.de/sparkfun-feuchtesensor-breakout-htu21d
     # I2C
     # library in case we use Si7006-A20 Temperature and Humidity sensor instead:
@@ -72,7 +80,7 @@ def get_humidty():
     # mind temperature compensation, heating, etc.
     # see also https://github.com/dalexgray/RaspberryPI_HTU21DF
     # SENSOR_ID_HUMIDITY
-    return 0.0
+    return 0.0, 0.0
 
 def get_adc(channel, gain=0):
     """Returns voltage at ADC, utility method for other methods"""
@@ -86,8 +94,8 @@ def get_adc(channel, gain=0):
 
 def get_battery_status():
     """Returns  battery status information, like
-    - Voltage
-    - Current consumption (before DC-DC converters)
+    - Voltage in V
+    - Current consumption (before DC-DC converters) in A
     - Battery temperature (DS18B20)"""
     # Voltage via simple voltage divider and MCP3204 ADC or directly via ADS1115 in the form of a https://www.adafruit.com/product/1085
     # Current via ACS712/714 + OpAmp + MCP3204 ADC or directly via ADS1115 in the form of a https://www.adafruit.com/product/1085
