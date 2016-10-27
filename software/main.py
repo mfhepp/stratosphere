@@ -15,12 +15,16 @@ from random import randint
 import serial
 import serial.tools.list_ports
 import RPi.GPIO as GPIO
-
 from config import *
 import sensors
 import gps_info
 
+
+from shared_memory import *
+
 def init():
+    '''This routine initalizes and tests all on-board sensors and equipment.
+    The return value is a boolean value: True = OK, False =  Errors. '''
     ok = True
     logging.info("Self-test started.")
     # Set GPIO pins properly, in particular those for the independent camera units
@@ -127,89 +131,89 @@ def init():
         logging.debug("ERROR: Transceiver filter configuration failed")
 
     # Test Sensors
-    internal_temp = sensors.get_temperature_DS18B20(config.SENSOR_ID_INTERNAL_TEMP)
-    if -5 < internal_temp < 40:
-        logging.info("Internal temperature: %.2f" % internal_temp)
+    internal_temp.value = sensors.get_temperature_DS18B20(config.SENSOR_ID_INTERNAL_TEMP)
+    if -5 < internal_temp.value < 40:
+        logging.info("Internal temperature: %.2f" % internal_temp.value)
     else:
         ok = False
-        logging.debug("WARNING: Internal temperature: %.2f" % internal_temp)
+        logging.debug("WARNING: Internal temperature: %.2f" % internal_temp.value)
 
-    external_temp = sensors.get_temperature_DS18B20(config.SENSOR_ID_EXTERNAL_TEMP)
-    if -10 < external_temp < 40:
-        logging.info("External temperature: %.2f" % external_temp)
+    external_temp.value = sensors.get_temperature_DS18B20(config.SENSOR_ID_EXTERNAL_TEMP)
+    if -10 < external_temp.value < 40:
+        logging.info("External temperature: %.2f" % external_temp.value)
     else:
         ok = False
-        logging.debug("WARNING: External temperature: %.2f" % external_temp)
+        logging.debug("WARNING: External temperature: %.2f" % external_temp.value)
 
     # TBD: Redundant, but nice to have as long as the other sensor functions are just boilerplate code
-    battery_temp = sensors.get_temperature_DS18B20(config.SENSOR_ID_BATTERY_TEMP)
-    if 10 < battery_temp < 40:
-        logging.info("Battery temperature: %.2f" % battery_temp)
+    battery_temp.value = sensors.get_temperature_DS18B20(config.SENSOR_ID_BATTERY_TEMP)
+    if 10 < battery_temp.value < 40:
+        logging.info("Battery temperature: %.2f" % battery_temp.value)
     else:
         ok = False
-        logging.debug("WARNING: Battery temperature: %.2f" % battery_temp)
+        logging.debug("WARNING: Battery temperature: %.2f" % battery_temp.value)
 
-    cpu_temp = sensors.get_temperature_cpu()
-    if 10 < cpu_temp < 40:
-        logging.info("CPU temperature: %.2f" % cpu_temp)
+    cpu_temp.value = sensors.get_temperature_cpu()
+    if 10 < cpu_temp.value < 40:
+        logging.info("CPU temperature: %.2f" % cpu_temp.value)
     else:
         ok = False
-        logging.debug("WARNING: CPU temperature: %.2f" % cpu_temp)
+        logging.debug("WARNING: CPU temperature: %.2f" % cpu_temp.value)
 
-    external_temp_ADC = sensors.get_temperature_external()
-    if -10 < external_temp_ADC < 40:
-        logging.info("External temperature from ADC: %.2f" % external_temp_ADC)
+    external_temp_ADC.value = sensors.get_temperature_external()
+    if -10 < external_temp_ADC.value < 40:
+        logging.info("External temperature from ADC: %.2f" % external_temp_ADC.value)
     else:
         ok = False
-        logging.debug("WARNING: External temperature from ADC: %.2f" % external_temp_ADC)
+        logging.debug("WARNING: External temperature from ADC: %.2f" % external_temp_ADC.value)
 
-    atmospheric_pressure = get_pressure()
-    if 900 < atmospheric_pressure < 1200:
-        logging.info("Atmospheric pressure: %.2f" % atmospheric_pressure)
+    atmospheric_pressure.value = get_pressure()
+    if 900 < atmospheric_pressure.value < 1200:
+        logging.info("Atmospheric pressure: %.2f" % atmospheric_pressure.value)
     else:
         ok = False
-        logging.debug("WARNING: Atmospheric pressure: %.2f" % atmospheric_pressure)
+        logging.debug("WARNING: Atmospheric pressure: %.2f" % atmospheric_pressure.value)
 
     # Relative humidity, https://en.wikipedia.org/wiki/Relative_humidity
-    humidity_internal, humidity_external = get_humidity()
-    if 0 < humidity_internal < 1:
-        logging.info("Internal relative humidity: %.2f %%" % humidity_internal*100)
+    humidity_internal.value, humidity_external.value = get_humidity()
+    if 0 < humidity_internal.value < 1:
+        logging.info("Internal relative humidity: %.2f %%" % humidity_internal.value*100)
     else:
         ok = False
-        logging.debug("WARNING: Internal relative humidity: %.2f %%" % humidity_internal*100)
+        logging.debug("WARNING: Internal relative humidity: %.2f %%" % humidity_internal.value*100)
 
-    if 0 < humidity_external < 1:
-        logging.info("External relative humidity: %.2f %%" % humidity_external*100)
+    if 0 < humidity_external.value < 1:
+        logging.info("External relative humidity: %.2f %%" % humidity_external.value*100)
     else:
         ok = False
-        logging.debug("WARNING: External relative humidity: %.2f %%" % humidity_external*100)
+        logging.debug("WARNING: External relative humidity: %.2f %%" % humidity_external.value*100)
 
-    motion_sensor_status, motion_sensor_message = get_motion_sensor_status()
-    if motion_sensor_status:
-            logging.info("Motion sensor OK, current values: %s" % motion_sensor_message)
+    motion_sensor_status.value, motion_sensor_message.value = get_motion_sensor_status()
+    if motion_sensor_status.value:
+            logging.info("Motion sensor OK, current values: %s" % motion_sensor_message.value)
     else:
         ok = False
-        logging.debug("WARNING: Motion sensor FAILED, current values: %s" % motion_sensor_message)
+        logging.debug("WARNING: Motion sensor FAILED, current values: %s" % motion_sensor_message.value)
 
     # Test Battery Voltage + Current
-    battery_voltage, discharge_current, battery_temp = get_battery_status()
-    if battery_voltage > 11:
-        logging.info("Battery voltage: %.2f V" % battery_voltage)
+    battery_voltage.value, discharge_current.value, battery_temp.value = get_battery_status()
+    if battery_voltage.value > 11:
+        logging.info("Battery voltage: %.2f V" % battery_voltage.value)
     else:
         ok = False
-        logging.debug("WARNING: Low battery voltage: %.2f V" % battery_voltage)
+        logging.debug("WARNING: Low battery voltage: %.2f V" % battery_voltage.value)
 
-    if 0.1 < discharge_current < 0.75:
-        logging.info("Discharge current: %.4f A" % discharge_current)
+    if 0.1 < discharge_current.value < 0.75:
+        logging.info("Discharge current: %.4f A" % discharge_current.value)
     else:
         ok = False
-        logging.debug("WARNING: Discharge current: %.4f A" % discharge_current)
+        logging.debug("WARNING: Discharge current: %.4f A" % discharge_current.value)
 
-    if 10 < battery_temp < 40:
-        logging.info("Battery temperature: %.2f" % battery_temp)
+    if 10 < battery_temp.value < 40:
+        logging.info("Battery temperature: %.2f" % battery_temp.value)
     else:
         ok = False
-        logging.debug("WARNING: Battery temperature: %.2f" % battery_temp)
+        logging.debug("WARNING: Battery temperature: %.2f" % battery_temp.value)
 
     # Test if GPS is available
     for i in range(10):
@@ -230,7 +234,6 @@ def init():
         logging.debug('ERROR: Failed to set GPS to flight mode.')
 
     return ok
-
 
 def update_gps_info(timestamp, altitude, latitude, longitude):
     '''Method for child process that fetches the GPS data, stores the most recent in global variables,
@@ -271,14 +274,6 @@ def update_gps_info(timestamp, altitude, latitude, longitude):
         # time.sleep(GPS_POLLTIME)
     return
 
-
-def gps_monitoring():
-    '''Reads GPS device and keeps last position and other data up to date.
-    Also updates system clock from GPS time stamp.'''
-    # Also log all raw NMEA packets with system timestamp in file
-    # Also use LED indicator when GPS has receiption (condition tbd; maybe blink whenever new valid position is received)
-    return
-
 def image_recording():
 # initialize and test equipment
     while True:
@@ -300,22 +295,40 @@ def image_recording():
 def sensor_recording():
     '''Records time-stamped sensor data for all sensors except for the 9-axis motion sensors'''
     while True:
-        internal_temp = sensors.get_temperature_DS18B20(config.SENSOR_ID_INTERNAL_TEMP)
-        external_temp = sensors.get_temperature_DS18B20(config.SENSOR_ID_EXTERNAL_TEMP)
-        external_temp_ADC = sensors.get_temperature_external()
-        cpu_temp = sensors.get_temperature_cpu()
-        battery_voltage, discharge_current, battery_temp = get_battery_status()
-        atmospheric_pressure = get_pressure()
-        humidity_internal, humidity_external = get_humidity()
-        motion_sensor_status, motion_sensor_message = get_motion_sensor_status()
-        data_msg = 'LAT=%.4f,LONG=%.4f,ALT=%.2f,' % (latitude.value, longitude.value, altitude.value) +
-        'T_INT=%.2f,T_EXT=%.2f,T_EXT_ADC=%.2f,T_CPU=%.2f,' % (internal_temp, external_temp, external_temp_ADC, cpu_temp) +
-        'BATT_U=%.2f,BATT_I=%.4f,BATT_T=%.2f,' % (battery_voltage, discharge_current, battery_temp) +
-        'ATM=%.2f, HUMID_INT=%.3f, HUMID_EXT=%.3f,' % (atmospheric_pressure, humidity_internal, humidity_external) +
-        'ORIENTATION=%s' % motion_sensor_message
-        datalogger.info(data_msg)
-        # add data to telemetry queue
-        # set LED1= OFF
+        start_time = time.time()
+        GPIO.output(SPARE_STATUS_LED_PIN, GPIO.HIGH)        
+        internal_temp.value = sensors.get_temperature_DS18B20(config.SENSOR_ID_INTERNAL_TEMP)
+        external_temp.value = sensors.get_temperature_DS18B20(config.SENSOR_ID_EXTERNAL_TEMP)
+        external_temp_ADC.value = sensors.get_temperature_external()
+        cpu_temp.value = sensors.get_temperature_cpu()
+        battery_voltage.value, discharge_current.value, battery_temp.value = get_battery_status()
+        atmospheric_pressure.value = get_pressure()
+        humidity_internal.value, humidity_external.value = get_humidity()
+        motion_sensor_status.value, motion_sensor_message.value = get_motion_sensor_status()
+        data_msg = 'LAT=%.4f,\
+            LONG=%.4f,\
+            ALT=%.2f,\
+            T_INT=%.2f,\
+            T_EXT=%.2f,\
+            T_EXT_ADC=%.2f,\
+            T_CPU=%.2f,\
+            BATT_U=%.2f,\
+            BATT_I=%.4f,\
+            BATT_T=%.2f,\
+            ATM=%.2f,\
+            HUMID_INT=%.3f,\
+            HUMID_EXT=%.3f,\
+            ORIENTATION=%s' % (latitude.value, longitude.value, altitude.value,
+            internal_temp.value, external_temp.value, external_temp_ADC.value, cpu_temp.value,
+            battery_voltage.value, discharge_current.value, battery_temp.value,
+            atmospheric_pressure.value, humidity_internal.value, humidity_external.value,
+            motion_sensor_message.value)
+            datalogger.info(data_msg)
+        time.sleep(0.3)
+        GPIO.output(SPARE_STATUS_LED_PIN, GPIO.LOW)
+        delay = 1.0/POLL_FREQUENCY - (time.time() - start_time)
+        if delay>0:
+            time.sleep(delay)
     return
 
 def motion_sensor_recording():
@@ -325,32 +338,49 @@ def motion_sensor_recording():
 
 def transmission():
     sstv = True
+    telemetry_meta_data_counter = 10
     while True:
         # add LED
         # Step 1: Send APRS messages (likely two because we have too much data)
         start_time = time.time()
-        # Delay tx by random number of secs after 0:0:0, maybe even vary in order to minimize collisions
+        # Delay tx by random number of 0..10 secs in order to minimize collisions on the APRS frequency
         time.sleep(random.random*10)
         # Create message
         aprs_msg = transmitter.generate_aprs()
-        # Convert to sound file and transmit sound file
-        transmitter.send_aprs(aprs_msg)
+        aprs_weather_msg = transmitter.generate_aprs_weather()
+        logging.info("APRS message: %s" % aprs_msg)
+        logging.info("APRS weather message: %s" % aprs_weather_msg)
+        
+        # Every ten APRS transmissions will include telemetry meta-data
+        if telemetry_meta_data_counter == 0:
+            aprs_telemetry_msg = aprs.generate_aprs_telemetry_config()
+            aprs.send_aprs(aprs_telemetry_msg)
+            logging.info("APRS telemetry meta-data sent: %s" % aprs_telemetry_msg)
+            telemetry_meta_data_counter = 10
+        else:
+            telemetry_meta_data_counter -= 1
+            
+        # Convert APRS messages to sound files and transmit sound files
+        aprs.send_aprs(aprs_msg)
+        aprs.send_aprs(aprs_weather_msg)
+        
+        # Send audio beacon on SSTV frequency
+        time.sleep(2)
+        send_audio_beacon()
+        time.sleep(2)
+        
         # Step 2: Send latest picture as SSTV every other minute
         if sstv:
             # transmit SSTV
-            time.sleep(24)  # fill remaining time to minute
             sstv = False
-        else:
-            time.sleep(60)
-            sstv = True
-        time.sleep(60 - (time.time() - start_time))  # make sure this happens every minute
+    
+        delay = APRS_RATE - (time.time() - start_time)  # Remaining seconds for a 1-minute cycle
+        if delay > 0:
+            time.sleep(delay)
 
-    # tbd: better syncing so that the frequency of transmission does not depend on timing of the execution, i.e. that the delay evens that out.
-    # tbd: if queue grows faster than transmission, drop older elements from queue (but keep them on storage device, e.g. while Queue.qsize() > 5: element = Queue.get() )
     # Reminder to self: Check whether APRS channel is busy (collision) will not work in altitude because of too many stations heard. So rather simply send our data.
-    # Delay tx by random number of secs after 0:0:0, maybe even vary
-    # Reduce APRS path setting depending on altitude
-    # Maybe backup high rate APRS on alternate frequency (one transmission every 10 seconds or so)
+    # Possible enhancement: Reduce APRS path setting depending on altitude
+    # Possible enhancement: Send APRS on alternate frequency (one transmission every 10 seconds or so)
     # See also http://www.aprs.net/vm/DOS/AIRCRAFT.HTM
     return
 

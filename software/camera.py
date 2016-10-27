@@ -16,38 +16,8 @@ import RPi.GPIO as GPIO
 import logging
 import multiprocessing as mp
 
-# settings for recording
-LENGTH_VIDEO = 60 # in seconds
-video_params = (1920, 1080, 30) # initial video params
-image_params = (2592, 1944) # initial image params
-RESOLUTIONS = (
-    # next_threshold video_params image_params
-    (10000000, video_params, image_params),
-    (2500000, (1440, 960, 24), (1920, 1080)),
-    (500000, (1280, 720, 24), (1920, 1080)),
-    (50000, (640, 480, 24), (1920, 1080)),
-    (10000, (320, 240, 24), (1280, 720)) # stop at ca. 10MB
-)
-ANNOTATE = 2 # 0 = no annotation, 1 = annotate images only, 2 = annotate both images and videos
-IMAGE_TEXT = "Ballonsonde UniBwM %(time)s\nalt=%(alt)s, lat=%(lat)s, lon=%(lon)s"
-VIDEO_TEXT = "Ballonsonde UniBwM %(time)s\nalt=%(alt)s, lat=%(lat)s, lon=%(lon)s"
-TEXT_SIZE = 40 # 6..160, default=32
-GPS_POLLTIME = 30 # in seconds
+from shared_memory import *
 
-timestamp = mp.Array("c", "01-01-1970T00:00:00Z")
-altitude = mp.Value("d", 0.0)
-altitude_outdated = mp.Value("i", 0)
-latitude = mp.Value("d", 0.0)
-latitude_outdated = mp.Value("i", 0)
-longitude = mp.Value("d", 0.0)
-longitude_outdated = mp.Value("i", 0)
-
-altitude.value =  0.0
-altitude_outdated.value = 0
-latitude.value = 0.0
-latitude_outdated.value = 0
-longitude.value = 0.0
-longitude_outdated.value = 0
 
 def attach_questionmark(value, yes):
     if yes:

@@ -7,6 +7,14 @@ import logging
 import os
 import RPi.GPIO as GPIO
 
+# Mission configuration
+DEBUG = True
+POLL_FREQUENCY = 1  # Sensor poll frequency in Hz
+CALLSIGN = "DL0UBW" # insert your mission callsign
+APRS_SSID = CALLSIGN + "-11"
+MISSION_TEXT = ""
+AUDIO_BEACON = "files/bake-test-dl0ubw-8k.wav"
+
 # Directories and filenames
 USB_DIR = "/media/usbstick/"  # This is the mounting point of the external USB stick
 LOGFILE_DIR = "/logfiles/"
@@ -14,8 +22,6 @@ VIDEO_DIR = "/videos/"
 IMAGE_DIR = "/still_images/"
 SSTV_DIR = "/sstv/"
 DATA_DIR = "/data/"
-DEBUG = True
-
 DISK_SPACE_MINIMUM = 16*1024*1024*1024  # 16 GB
 
 # Test of USB stick is available, if not, try to mount
@@ -76,8 +82,6 @@ SENSOR_ADC_CHANNEL_BATTERY_VOLTAGE = 1
 SENSOR_ADC_CHANNEL_CURRENT = 2
 
 # Transceiver
-CALLSIGN = "DL0UBW" # insert your mission callsign
-APRS_SSID = CALLSIGN + "-11"
 TRANSMISSION_POWER_DEFAULT = GPIO.LOW # low = 0.5 W, high = 1 W
 PRE_EMPHASIS = 0 # Whether or not we use pre-emphasis for transmitting APRS and SSTV
 # 0 turn on;1 turn off
@@ -131,3 +135,19 @@ DRA818_HL = 32 # GPIO12, RF Power Selection: Low->0.5W; floated->1W
 # GPIO14 / 8: UART TXD
 # GPIO15 / 10: UART RXD
 
+# Settings for video recording and still images
+LENGTH_VIDEO = 60 # in seconds
+video_params = (1920, 1080, 30) # initial video params
+image_params = (2592, 1944) # initial image params
+RESOLUTIONS = (
+    # next_threshold video_params image_params
+    (10000000, video_params, image_params),
+    (2500000, (1440, 960, 24), (1920, 1080)),
+    (500000, (1280, 720, 24), (1920, 1080)),
+    (50000, (640, 480, 24), (1920, 1080)),
+    (10000, (320, 240, 24), (1280, 720)) # stop at ca. 10MB
+)
+ANNOTATE = 2 # 0 = no annotation, 1 = annotate images only, 2 = annotate both images and videos
+IMAGE_TEXT = "High-Altitude Balloon Mission DL0UBW, UniBwM %(time)s\nalt=%(alt)s, lat=%(lat)s, lon=%(lon)s"
+VIDEO_TEXT = "High-Altitude Balloon Mission DL0UBW, UniBwM %(time)s\nalt=%(alt)s, lat=%(lat)s, lon=%(lon)s"
+TEXT_SIZE = 40 # 6..160, default=32

@@ -46,10 +46,11 @@ def get_pressure():
 
 def get_motion_sensor_status():
     '''Tests motions sensor'''
+    '''Return 0 for False and 1 for True'''
     # enable
     # read
     # reasonable
-    return True, "Readings"
+    return 0, "Readings as Text, including Compass"
 
 def get_motion_data():
     """Returns all data from the 9 degrees of freedom sensor LSM9DS1"""
