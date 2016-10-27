@@ -7,13 +7,6 @@
 
 from config import *
 
-def init():
-    '''Initialize and self-test transceiver module'''
-    # Filter and pre-emphasis settings, see also http://www.febo.com/packet/layer-one/transmit.html
-    # Also see https://github.com/LZ1PPL/VSTv2/blob/master/VSTv2.ino
-    # and https://github.com/darksidelemm/dra818/blob/master/DRA818/DRA818.cpp
-    # and https://github.com/darksidelemm/dra818/blob/master/DRA818/examples/DRA818_Basic/DRA818_Basic.ino
-    return
 
 def send_aprs(aprs_message, power_level = TRANSMISSION_POWER_DEFAULT):
     '''Tunes transceiver to APRS frequency, converts the APRS message to audio, and transmits the audio'''

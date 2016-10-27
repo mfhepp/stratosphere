@@ -11,6 +11,7 @@ import os
 import sys
 import time
 import multiprocessing as mp
+from random import randint
 import serial
 import serial.tools.list_ports
 import RPi.GPIO as GPIO
@@ -328,10 +329,12 @@ def transmission():
         # add LED
         # Step 1: Send APRS messages (likely two because we have too much data)
         start_time = time.time()
-        # Create message
-        # Convert to sound file
         # Delay tx by random number of secs after 0:0:0, maybe even vary in order to minimize collisions
-        # Transmit sound file
+        time.sleep(random.random*10)
+        # Create message
+        aprs_msg = transmitter.generate_aprs()
+        # Convert to sound file and transmit sound file
+        transmitter.send_aprs(aprs_msg)
         # Step 2: Send latest picture as SSTV every other minute
         if sstv:
             # transmit SSTV
@@ -521,12 +524,12 @@ def main():
         while True:
             # 1. record video
             try:
-                video_recording(LENGTH_VIDEO, video_params)
+                camera.video_recording(LENGTH_VIDEO, video_params)
             except Exception as recording_msg:
                 logging.exception(recording_msg)
             # 2. capture snapshot
             try:
-                take_snapshot(image_params)
+                camera.take_snapshot(image_params)
             except Exception as capturing_msg:
                 logging.exception(capturing_msg)
     except Exception as msg:

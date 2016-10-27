@@ -35,8 +35,8 @@ logging.getLogger().addHandler(std_logger)
 
 # GPS
 SERIAL_PORT_GPS = "/dev/ttyUSB0"  # just an example
-GPS_POLLTIME = 2 # in seconds
-GPS_ALTITUDE_MODE_CEILING = 10000
+# GPS_POLLTIME = 2 # in seconds  # Not used
+# GPS_ALTITUDE_MODE_CEILING = 10000  # Not used
 # Altitude at which GPS will be switched to Airborne-6 mode
 # with <1g Acceleration; TBD
 
@@ -62,9 +62,10 @@ LSM9DS1
 #define LSM9DS1_M   0x1E (// Would be 0x1C if SDO_M is LOW)
 #define LSM9DS1_AG  0x6B (// Would be 0x6A if SDO_AG is LOW)
 HTU21D-F - the I2C address is 0x40 and you can't change it!"""
-SENSOR_ID_ADC = ""
-SENSOR_ID_PRESSURE = ""
-SENSOR_ID_HUMIDITY = ""
+SENSOR_ID_ADC = "0x48"
+SENSOR_ID_PRESSURE = "0x77"  # BMP280
+SENSOR_ID_HUMIDITY_INT = "0x40"  # HTU21D-F
+SENSOR_ID_HUMIDITY_EXT = "" # tbd
 SENSOR_ID_MOTION = ""
 # ADC channels
 # A0 Ext Temperature über 1 k Voltage Divider, R Sensor 500 - 1500 R für -100 ... + 100 Grad V -  Spannungsteiler 1 k Ohm gegen + 3.3. V - bei 500 (-100 Grad)  - 1500 R (+100 Grad) = 1.1 - 2.2. V (außenkontakte!)
