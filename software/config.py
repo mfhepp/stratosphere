@@ -14,6 +14,7 @@ VIDEO_DIR = "/videos/"
 IMAGE_DIR = "/still_images/"
 SSTV_DIR = "/sstv/"
 DATA_DIR = "/data/"
+DEBUG = True
 
 DISK_SPACE_MINIMUM = 16*1024*1024*1024  # 16 GB
 
@@ -24,6 +25,9 @@ DISK_SPACE_MINIMUM = 16*1024*1024*1024  # 16 GB
 FORMAT = '%(asctime)-15s %(levelname)10s:  %(message)s'
 # Log to a file
 logging.basicConfig(filename=os.path.join(USB_DIR, "main.log"), level=logging.DEBUG, format=FORMAT)
+datalogger = logging.getLogger('data') # we use a logger for the data capture because it is most resilient
+gps_logger = logging.getLogger('gps') # same for raw NMEA data
+
 # Log to standard output as well
 std_logger = logging.StreamHandler()
 std_logger.setFormatter(logging.Formatter(FORMAT))

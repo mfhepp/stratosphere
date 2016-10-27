@@ -16,7 +16,7 @@
 
 import serial
 import pynmea2
-from config import logging
+from config import logging, gps_logger
 from serial.tools import list_ports
 
 device = None
@@ -101,12 +101,13 @@ def get_info():
         date = None
         while True:
             line = ser.readline()
+            gps_logger(line.rstrip())
             if line.startswith("$GPRMC"):
-                logging.debug(line.rstrip())
+                # logging.debug(line.rstrip()) # not needed since we log them all
                 msg = pynmea2.parse(line)
                 date = msg.datestamp
             elif line.startswith("$GPGGA"):
-                logging.debug(line.rstrip())
+                # logging.debug(line.rstrip()) # same here
                 msg = pynmea2.parse(line)
                 logging.info("%s lat=%s long=%s alt=%s" %(msg.timestamp, msg.lat, msg.lon, msg.altitude))
                 return msg, date
