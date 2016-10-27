@@ -10,19 +10,20 @@ import RPi.GPIO as GPIO
 # Mission configuration
 DEBUG = True
 POLL_FREQUENCY = 1  # Sensor poll frequency in Hz
-CALLSIGN = "DL0UBW" # insert your mission callsign
+CALLSIGN = "DL0UBW"  # insert your mission callsign
 APRS_SSID = CALLSIGN + "-11"
 MISSION_TEXT = ""
+APRS_COMMENT = 'UniBwM Stratosphere 2016'
 AUDIO_BEACON = "files/bake-test-dl0ubw-8k.wav"
 
 # Directories and filenames
-USB_DIR = "/media/usbstick/"  # This is the mounting point of the external USB stick
+USB_DIR = "/media/usbstick/"  # Mounting point of the external USB stick
 LOGFILE_DIR = "/logfiles/"
 VIDEO_DIR = "/videos/"
 IMAGE_DIR = "/still_images/"
 SSTV_DIR = "/sstv/"
 DATA_DIR = "/data/"
-DISK_SPACE_MINIMUM = 16*1024*1024*1024  # 16 GB
+DISK_SPACE_MINIMUM = 16 * 1024 * 1024 * 1024  # 16 GB
 
 # Test of USB stick is available, if not, try to mount
 # Test if USB stick has at least 30 GB free capacity
@@ -30,9 +31,11 @@ DISK_SPACE_MINIMUM = 16*1024*1024*1024  # 16 GB
 # Configure logging
 FORMAT = '%(asctime)-15s %(levelname)10s:  %(message)s'
 # Log to a file
-logging.basicConfig(filename=os.path.join(USB_DIR, "main.log"), level=logging.DEBUG, format=FORMAT)
-datalogger = logging.getLogger('data') # we use a logger for the data capture because it is most resilient
-gps_logger = logging.getLogger('gps') # same for raw NMEA data
+logging.basicConfig(filename=os.path.join(USB_DIR, "main.log"),
+    level=logging.DEBUG, format=FORMAT)
+# We use a logger for the data capture because it is most resilient
+datalogger = logging.getLogger('data')
+gps_logger = logging.getLogger('gps')  # same for raw NMEA data
 
 # Log to standard output as well
 std_logger = logging.StreamHandler()
@@ -71,7 +74,7 @@ HTU21D-F - the I2C address is 0x40 and you can't change it!"""
 SENSOR_ID_ADC = "0x48"
 SENSOR_ID_PRESSURE = "0x77"  # BMP280
 SENSOR_ID_HUMIDITY_INT = "0x40"  # HTU21D-F
-SENSOR_ID_HUMIDITY_EXT = "" # tbd
+SENSOR_ID_HUMIDITY_EXT = ""  # tbd
 SENSOR_ID_MOTION = ""
 # ADC channels
 # A0 Ext Temperature über 1 k Voltage Divider, R Sensor 500 - 1500 R für -100 ... + 100 Grad V -  Spannungsteiler 1 k Ohm gegen + 3.3. V - bei 500 (-100 Grad)  - 1500 R (+100 Grad) = 1.1 - 2.2. V (außenkontakte!)
@@ -82,8 +85,8 @@ SENSOR_ADC_CHANNEL_BATTERY_VOLTAGE = 1
 SENSOR_ADC_CHANNEL_CURRENT = 2
 
 # Transceiver
-TRANSMISSION_POWER_DEFAULT = GPIO.LOW # low = 0.5 W, high = 1 W
-PRE_EMPHASIS = 0 # Whether or not we use pre-emphasis for transmitting APRS and SSTV
+TRANSMISSION_POWER_DEFAULT = GPIO.LOW  # low = 0.5 W, high = 1 W
+PRE_EMPHASIS = 0  # Whether or not we use pre-emphasis for transmitting APRS and SSTV
 # 0 turn on;1 turn off
 # mainly depends on whether the receiving devices use de-emphasis or not
 # See http://www.tapr.org/pipermail/aprssig/2009-October/031608.html
@@ -92,14 +95,16 @@ LOW_PASS = 1  # 0 turn on;1 turn off
 SQUELCH = 0  # squelch level 0-8, will save power to be set to 8 in altitude but useful at 0 for debugging
 APRS_ON = True
 APRS_FREQUENCY = 144.800
-APRS_RATE = 60 # one transmission per 60 seconds
-APRS_PATH = "WIDE2-1" # http://www.arhab.org/aprs
+APRS_RATE = 60  # one transmission per 60 seconds
+APRS_PATH = "WIDE2-1"  # http://www.arhab.org/aprs
+aprs_sequence = 0  # initial sequency ID
+
 SSTV_ON = True
-SSTV_FREQUENCY = 145.200 # or 144.600 # TBC
-SSTV_MODE = "r36" # Robot 36
+SSTV_FREQUENCY = 145.200  # or 144.600 # TBC
+SSTV_MODE = "r36"  # Robot 36
 # Martin 1: m1 / Martin 2: m2 / Scottie 1: s1 / Scottie 2: s2 / Scottie DX: sdx / Robot 36: r36
 # Values from https://github.com/hatsunearu/pisstvpp
-SSTV_DELAY = 60 # wait 60 seconds after each transmission
+SSTV_DELAY = 60  # wait 60 seconds after each transmission
 
 # GPIO pin configuration for 1-wire, secondary cameras, power-on, status LEDs, etc.
 # TBC - Okay, up to date
@@ -111,24 +116,24 @@ DONE CTL CAM BOTTOM verdrahten
 GPIO22 weiss -> BLACK PIN_BUTTON = 5 # start and shutdown signal
 GPIO24 gelb --> RED PIN_REC = 7 # start/stop recording
 GPIO23 grau -> BROWN PIN_ACK = 11 # acknowledge recording state"""
-ONE_WIRE_PIN = 7 # GPIO4 for 1-Wire Devices
-POWER_BUTTON_PIN = 37 # GPIO26
-MAIN_STATUS_LED_PIN = 40 # GPIO21
-SPARE_STATUS_LED_PIN = 24 # GPIO8
-MAIN_CAM_STATUS_LED = 26 # GPIO07
-CAM1_PWR = 11 # GPIO17
-CAM1_REC = 13 # GPIO13
-CAM1_STATUS = 12 # GPIO18
-CAM2_PWR = 15 # GPIO22
-CAM2_REC = 18 # GPIO14
-CAM2_STATUS = 16 # GPIO23
+ONE_WIRE_PIN = 7  # GPIO4 for 1-Wire Devices
+POWER_BUTTON_PIN = 37  # GPIO26
+MAIN_STATUS_LED_PIN = 40  # GPIO21
+SPARE_STATUS_LED_PIN = 24  # GPIO8
+MAIN_CAM_STATUS_LED = 26  # GPIO07
+CAM1_PWR = 11  # GPIO17
+CAM1_REC = 13  # GPIO13
+CAM1_STATUS = 12  # GPIO18
+CAM2_PWR = 15  # GPIO22
+CAM2_REC = 18  # GPIO14
+CAM2_STATUS = 16  # GPIO23
 
 # GPIO and UART configuration for DORJI DRA818V transceiver module
 # OK, checked
-SERIAL_PORT_TRANSCEIVER = "/dev/ttyAMA0" # just an example
-DRA818_PTT = 38 # GPIO20, Tx/Rx control pin: Low->TX; High->RX
-DRA818_PD = 36 # GPIO16, Power saving control pin: Low->sleep mode; High->normal mode
-DRA818_HL = 32 # GPIO12, RF Power Selection: Low->0.5W; floated->1W
+SERIAL_PORT_TRANSCEIVER = "/dev/ttyAMA0"  # just an example
+DRA818_PTT = 38  # GPIO20, Tx/Rx control pin: Low->TX; High->RX
+DRA818_PD = 36  # GPIO16, Power saving control pin: Low->sleep mode; High->normal mode
+DRA818_HL = 32  # GPIO12, RF Power Selection: Low->0.5W; floated->1W
 # Reserved GPIO pins:
 # GPIO2 / 3: SDA1 I2C
 # GPIO3 / 5: SCL1 I2C
@@ -136,18 +141,18 @@ DRA818_HL = 32 # GPIO12, RF Power Selection: Low->0.5W; floated->1W
 # GPIO15 / 10: UART RXD
 
 # Settings for video recording and still images
-LENGTH_VIDEO = 60 # in seconds
-video_params = (1920, 1080, 30) # initial video params
-image_params = (2592, 1944) # initial image params
+LENGTH_VIDEO = 60  # in seconds
+video_params = (1920, 1080, 30)  # initial video params
+image_params = (2592, 1944)  # initial image params
 RESOLUTIONS = (
     # next_threshold video_params image_params
     (10000000, video_params, image_params),
     (2500000, (1440, 960, 24), (1920, 1080)),
     (500000, (1280, 720, 24), (1920, 1080)),
     (50000, (640, 480, 24), (1920, 1080)),
-    (10000, (320, 240, 24), (1280, 720)) # stop at ca. 10MB
-)
-ANNOTATE = 2 # 0 = no annotation, 1 = annotate images only, 2 = annotate both images and videos
+    (10000, (320, 240, 24), (1280, 720)))  # stop at ca. 10MB
+
+ANNOTATE = 2  # 0 = no annotation, 1 = annotate images only, 2 = annotate both images and videos
 IMAGE_TEXT = "High-Altitude Balloon Mission DL0UBW, UniBwM %(time)s\nalt=%(alt)s, lat=%(lat)s, lon=%(lon)s"
 VIDEO_TEXT = "High-Altitude Balloon Mission DL0UBW, UniBwM %(time)s\nalt=%(alt)s, lat=%(lat)s, lon=%(lon)s"
-TEXT_SIZE = 40 # 6..160, default=32
+TEXT_SIZE = 40  # 6..160, default=32

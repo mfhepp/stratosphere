@@ -6,18 +6,24 @@
 # tbd: super-robust error handling
 # i2c docs e.g. from http://www.raspberry-projects.com/pi/programming-in-python/i2c-programming-in-python/using-the-i2c-interface-2
 
-import config
+from subprocess import PIPE, Popen
+
+from config import *
 from w1thermsensor import W1ThermSensor
 
 def get_temperature_cpu():
     """Returns the temperature of the Raspberry CPU in degree Celsius"""
     # Internal, see https://cae2100.wordpress.com/2012/12/29/reading-cpu-temps-using-python-for-raspberry-pi/
-    return 0.0
+    process = Popen(['vcgencmd', 'measure_temp'], stdout=PIPE)
+    output, _error = process.communicate()
+    return float(output[output.index('=') + 1:output.rindex("'")])
+
 
 def get_temperature_DS18B20(sensor_id=''):
     """Returns the temperature of the given DS18B20 sensor in degree Celsius"""
     sensor = W1ThermSensor(W1ThermSensor.THERM_SENSOR_DS18B20, sensor_id)
     return sensor.get_temperature()
+
 
 def get_temperature_external():
     """Returns the temperature of the external HEL-712-U-0-12-00 sensor in degree Celsius"""
@@ -28,8 +34,8 @@ def get_temperature_external():
     coefficient = 1.0
     exponent = 1.0
     external_temperature = offset + coefficient * raw_temp ** exponent
-
     return external_temperature
+
 
 def get_pressure():
     """Returns the pressure from the AP40N-200KG-Stick pressure sensor"""
@@ -46,7 +52,7 @@ def get_pressure():
 
 def get_motion_sensor_status():
     '''Tests motions sensor'''
-    '''Return 0 for False and 1 for True'''
+    '''Return 0 for False and 1 for True and a short string with orientation etc.'''
     # enable
     # read
     # reasonable
@@ -61,15 +67,6 @@ def get_motion_data():
     # https://cdn.sparkfun.com/assets/learn_tutorials/3/7/3/LSM9DS1_Datasheet.pdf
     # SENSOR_ID_MOTION
     return {}
-
-def get_GPS_data():
-    """Return GPS position, altitude, meta-data, and raw NMEA details (number of satelites etc.)"""
-    # rate of ascent/ descent
-    # see http://www.watterott.com/de/ublox-max-6-max-7-GPS-breakout
-    # UART or I2C
-    # might become a dedicated thread / process and then this routine will communicate with that one
-    # instead of the sensor directly
-    return None
 
 def get_humidity():
     """Returns data from the HTU21D humidity sensors inside and outside the probe

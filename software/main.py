@@ -19,7 +19,6 @@ from config import *
 import sensors
 import gps_info
 
-
 from shared_memory import *
 
 def init():
@@ -261,12 +260,14 @@ def update_gps_info(timestamp, altitude, latitude, longitude):
             logging.exception(msg)
         try:
             latitude.value = float(gps_data.lat)/100
+            latitude_direction.value = str(gps_data.lat_dir)
             latitude_outdated.value = 0
         except Exception as msg:
             latitude_outdated.value = 1
             logging.exception(msg)
         try:
             longitude.value = float(gps_data.lon)/100
+            longitude_direction.value = str(gps_data.long_dir)
             longitude_outdated.value = 0
         except Exception as msg:
             longitude_outdated.value = 1
@@ -274,61 +275,47 @@ def update_gps_info(timestamp, altitude, latitude, longitude):
         # time.sleep(GPS_POLLTIME)
     return
 
-def image_recording():
-# initialize and test equipment
-    while True:
-        pass
-    # record HD video for 1 minute and save
-    # see http://picamera.readthedocs.io/en/release-1.10/recipes1.html#overlaying-text-on-the-output
-    # see also http://www.netzmafia.de/skripten/hardware/RasPi/RasPi_Kamera.html
-    # take HiRes static image and save
-    # add basic telemetry data (and save under new filename?)
-    # take lowres SSTV Robot 36 image and save
-    # add callsign + telemetry data
-    # use cv2.rectangle() + cv2.putText() for that or
-    ## for SSTV loop, see https://github.com/hatsunearu/pisstvpp/blob/master/sstvcatch.py
-    # maybe change camera position for SSTV (e.g. ground, horizon, top)
-    # check for disk space and power saving
-    # add SSTV to telemetry queue
-    return
 
 def sensor_recording():
     '''Records time-stamped sensor data for all sensors except for the 9-axis motion sensors'''
     while True:
-        start_time = time.time()
-        GPIO.output(SPARE_STATUS_LED_PIN, GPIO.HIGH)        
-        internal_temp.value = sensors.get_temperature_DS18B20(config.SENSOR_ID_INTERNAL_TEMP)
-        external_temp.value = sensors.get_temperature_DS18B20(config.SENSOR_ID_EXTERNAL_TEMP)
-        external_temp_ADC.value = sensors.get_temperature_external()
-        cpu_temp.value = sensors.get_temperature_cpu()
-        battery_voltage.value, discharge_current.value, battery_temp.value = get_battery_status()
-        atmospheric_pressure.value = get_pressure()
-        humidity_internal.value, humidity_external.value = get_humidity()
-        motion_sensor_status.value, motion_sensor_message.value = get_motion_sensor_status()
-        data_msg = 'LAT=%.4f,\
-            LONG=%.4f,\
-            ALT=%.2f,\
-            T_INT=%.2f,\
-            T_EXT=%.2f,\
-            T_EXT_ADC=%.2f,\
-            T_CPU=%.2f,\
-            BATT_U=%.2f,\
-            BATT_I=%.4f,\
-            BATT_T=%.2f,\
-            ATM=%.2f,\
-            HUMID_INT=%.3f,\
-            HUMID_EXT=%.3f,\
-            ORIENTATION=%s' % (latitude.value, longitude.value, altitude.value,
-            internal_temp.value, external_temp.value, external_temp_ADC.value, cpu_temp.value,
-            battery_voltage.value, discharge_current.value, battery_temp.value,
-            atmospheric_pressure.value, humidity_internal.value, humidity_external.value,
-            motion_sensor_message.value)
+        try:
+            start_time = time.time()
+            GPIO.output(SPARE_STATUS_LED_PIN, GPIO.HIGH)
+            internal_temp.value = sensors.get_temperature_DS18B20(config.SENSOR_ID_INTERNAL_TEMP)
+            external_temp.value = sensors.get_temperature_DS18B20(config.SENSOR_ID_EXTERNAL_TEMP)
+            external_temp_ADC.value = sensors.get_temperature_external()
+            cpu_temp.value = sensors.get_temperature_cpu()
+            battery_voltage.value, discharge_current.value, battery_temp.value = get_battery_status()
+            atmospheric_pressure.value = get_pressure()
+            humidity_internal.value, humidity_external.value = get_humidity()
+            motion_sensor_status.value, motion_sensor_message.value = get_motion_sensor_status()
+            data_msg = 'LAT=%.4f,\
+                LONG=%.4f,\
+                ALT=%.2f,\
+                T_INT=%.2f,\
+                T_EXT=%.2f,\
+                T_EXT_ADC=%.2f,\
+                T_CPU=%.2f,\
+                BATT_U=%.2f,\
+                BATT_I=%.4f,\
+                BATT_T=%.2f,\
+                ATM=%.2f,\
+                HUMID_INT=%.3f,\
+                HUMID_EXT=%.3f,\
+                ORIENTATION=%s' % (latitude.value, longitude.value, altitude.value,
+                internal_temp.value, external_temp.value, external_temp_ADC.value, cpu_temp.value,
+                battery_voltage.value, discharge_current.value, battery_temp.value,
+                atmospheric_pressure.value, humidity_internal.value, humidity_external.value,
+                motion_sensor_message.value)
             datalogger.info(data_msg)
-        time.sleep(0.3)
-        GPIO.output(SPARE_STATUS_LED_PIN, GPIO.LOW)
-        delay = 1.0/POLL_FREQUENCY - (time.time() - start_time)
-        if delay>0:
-            time.sleep(delay)
+            time.sleep(0.3)
+            GPIO.output(SPARE_STATUS_LED_PIN, GPIO.LOW)
+            delay = 1.0/POLL_FREQUENCY - (time.time() - start_time)
+            if delay>0:
+                time.sleep(delay)
+        except Exception as msg:
+            logging.exception(msg)
     return
 
 def motion_sensor_recording():
@@ -350,7 +337,7 @@ def transmission():
         aprs_weather_msg = transmitter.generate_aprs_weather()
         logging.info("APRS message: %s" % aprs_msg)
         logging.info("APRS weather message: %s" % aprs_weather_msg)
-        
+
         # Every ten APRS transmissions will include telemetry meta-data
         if telemetry_meta_data_counter == 0:
             aprs_telemetry_msg = aprs.generate_aprs_telemetry_config()
@@ -359,21 +346,24 @@ def transmission():
             telemetry_meta_data_counter = 10
         else:
             telemetry_meta_data_counter -= 1
-            
+
         # Convert APRS messages to sound files and transmit sound files
         aprs.send_aprs(aprs_msg)
         aprs.send_aprs(aprs_weather_msg)
-        
+
         # Send audio beacon on SSTV frequency
         time.sleep(2)
-        send_audio_beacon()
+        sstv.send_audio_beacon()
         time.sleep(2)
-        
+
         # Step 2: Send latest picture as SSTV every other minute
         if sstv:
             # transmit SSTV
+            TBD: send_sstv()
             sstv = False
-    
+        else:
+            sstv = True
+
         delay = APRS_RATE - (time.time() - start_time)  # Remaining seconds for a 1-minute cycle
         if delay > 0:
             time.sleep(delay)
@@ -497,8 +487,16 @@ def main():
     if status_ok:
         logging.info("="*60+"\nSelf-test status: OK\n"+"="*60)
         GPIO.output(MAIN_STATUS_LED_PIN, GPIO.HIGH)
+        aprs.send_aprs('%s>%s:>Self-test status: OK') % (APRS_SSID, APRS_SSID)
+        for in range(3):
+            sstv.send_audio_beacon(file='files/selftest-ok.wav')
+            time.sleep(2)
     else:
         logging.debug("="*60+"\nFATAL: Self-test status: FAILURE\n"+"="*60)
+        # The following would be nice, but since we do not know the state of the transceiver,
+        # this is risky (it might have been tuned to a wrong frequency)
+        # sstv.send_audio_beacon(file='files/selftest-failed.wav')
+        # aprs.send_aprs('%s>%s:>Self-test status: FAILURE') % (APRS_SSID, APRS_SSID)
         logging.debug("Shutting down system.")
         os.system("sudo shutdown -h now")
 
@@ -514,6 +512,9 @@ def main():
         time.sleep(1)
     else:
         info.debug('FATAL: No valid GPS position detected after 300 seconds.')
+        sstv.send_audio_beacon(file='files/selftest-failed.wav')
+        time.sleep(2)
+        aprs.send_aprs('%s>%s:>FATAL: No valid GPS position detected after 300 seconds.') % (APRS_SSID, APRS_SSID)
         logging.debug("Shutting down system.")
         os.system("sudo shutdown -h now")
 
@@ -553,6 +554,16 @@ def main():
 
         while True:
             # 1. record video
+            # see http://picamera.readthedocs.io/en/release-1.10/recipes1.html#overlaying-text-on-the-output
+            # see also http://www.netzmafia.de/skripten/hardware/RasPi/RasPi_Kamera.html
+            # take HiRes static image and save
+            # add basic telemetry data (and save under new filename?)
+            # take lowres SSTV Robot 36 image and save
+            # add callsign + telemetry data
+            # use cv2.rectangle() + cv2.putText() for that or
+            ## for SSTV loop, see https://github.com/hatsunearu/pisstvpp/blob/master/sstvcatch.py
+            # check for disk space and power saving
+            # add SSTV to telemetry queue
             try:
                 camera.video_recording(LENGTH_VIDEO, video_params)
             except Exception as recording_msg:

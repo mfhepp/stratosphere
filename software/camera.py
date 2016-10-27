@@ -18,7 +18,6 @@ import multiprocessing as mp
 
 from shared_memory import *
 
-
 def attach_questionmark(value, yes):
     if yes:
         return str(value) + "?"

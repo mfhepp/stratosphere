@@ -28,7 +28,7 @@ def play_file(filename):
     subprocess.call(command, shell=True)
     return
 
-def send_audio_beacon():
+def send_audio_beacon(file=AUDIO_BEACON):
     # tune to SSTV frequency
     # turn transmitter on
     # wait

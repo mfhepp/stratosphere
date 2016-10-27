@@ -11,6 +11,7 @@ import RPi.GPIO as GPIO
 from config import *
 from sensors import *
 
+import aprs.py
 
 def test_transceiver():
     # Initialize GPIO
