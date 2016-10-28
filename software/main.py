@@ -14,6 +14,7 @@ import multiprocessing as mp
 from random import randint
 import serial
 import serial.tools.list_ports
+from picamera import PiCamera
 import RPi.GPIO as GPIO
 from config import *
 import sensors
@@ -231,7 +232,19 @@ def init():
     else:
         ok = False
         logging.debug('ERROR: Failed to set GPS to flight mode.')
-
+    
+    # Test if camera 1 available and returns a reasonable image
+    try:
+        logging.info("Testing main camera unit.")
+        camera = PiCamera()
+        camera.start_preview()
+        sleep(10)
+        camera.stop_preview()
+        logging.info("Main camera unit OK.")
+    except Exception as msg:
+        logging.debug("ERROR: Main camera unit cannot be initialized")
+        logging.exception(msg)
+        
     return ok
 
 def update_gps_info(timestamp, altitude, latitude, longitude):
@@ -391,7 +404,6 @@ def power_monitoring():
 
 def start_secondary_cameras():
     # https://bitbucket.org/alexstolz/strato_media
-    # - Camera 1 available and reasonable image
     # - Camera 2 power on and wait for handshake
         # CAM1_ENABLE_PIN = 29 # GPIO5, low for > 1 sec.
         # CAM1_STATUS_PIN = 31 # GPIO6, high = running
@@ -419,6 +431,9 @@ def start_secondary_cameras():
 def turn_off_usv_charging():
     '''Turns of the charging function of the S.USV backup, because we do not want to
     charge this secondary backup from our primary cells.'''
+    # Die sekundäre Versorgung (Pufferbetrieb) der S.USV kann über folgenden I2C-Befehl deaktiviert werden:
+    # sudo i2cset -y 1 0x0f 0x31 – Der Befehl 0x31 signalisiert der S.USV den sekundären Modus zu beenden und in den primären Modus zu schalten.
+
     return
 
 def led_blink_process(led_pin, frequency=1):
