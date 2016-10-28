@@ -71,11 +71,14 @@ LSM9DS1
 #define LSM9DS1_M   0x1E (// Would be 0x1C if SDO_M is LOW)
 #define LSM9DS1_AG  0x6B (// Would be 0x6A if SDO_AG is LOW)
 HTU21D-F - the I2C address is 0x40 and you can't change it!"""
-SENSOR_ID_ADC = "0x48"
-SENSOR_ID_PRESSURE = "0x77"  # BMP280
-SENSOR_ID_HUMIDITY_INT = "0x40"  # HTU21D-F
+SENSOR_ID_ADC = 0x48
+SENSOR_ID_PRESSURE = 0x77  # BMP280
+SENSOR_ID_HUMIDITY_INT = 0x40  # HTU21D-F
 SENSOR_ID_HUMIDITY_EXT = ""  # tbd
-SENSOR_ID_MOTION = ""
+SENSOR_ID_MOTION_M = 0x1E
+SENSOR_ID_MOTION_AG = 0x6B
+USV_ID = 0x0F
+RTC_ID = 0x68
 # ADC channels
 # A0 Ext Temperature über 1 k Voltage Divider, R Sensor 500 - 1500 R für -100 ... + 100 Grad V -  Spannungsteiler 1 k Ohm gegen + 3.3. V - bei 500 (-100 Grad)  - 1500 R (+100 Grad) = 1.1 - 2.2. V (außenkontakte!)
 # A1 = U Batt über 10k : 1 k Voltage Divider (*0,1)

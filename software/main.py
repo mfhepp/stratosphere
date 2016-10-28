@@ -16,6 +16,7 @@ import serial
 import serial.tools.list_ports
 from picamera import PiCamera
 import RPi.GPIO as GPIO
+from smbus import SMBus
 from config import *
 import sensors
 import gps_info
@@ -214,6 +215,12 @@ def init():
     else:
         ok = False
         logging.debug("WARNING: Battery temperature: %.2f" % battery_temp.value)
+    
+    # TBD: One could test whether the S.USV component is ok
+    # a) Found + firmware version
+    # b) Battery voltage
+    # c) System voltage
+    # d) System running on primary power at startup
 
     # Test if GPS is available
     for i in range(10):
@@ -399,6 +406,12 @@ def power_monitoring():
     # http://stackoverflow.com/questions/6524459/stopping-a-thread-after-a-certain-amount-of-time
     # if battery_level <= minimum:
     #    power_saving_mode = True
+    #  Also handle USV if present:
+    # Abfrage der Spannungsquelle – primärer oder sekundärer Betrieb ( Batterie )
+    # Im sekundären Betrieb muss  die Restkapazität bzw. die Ladespannung des Akkus zyklisch abgefragt werden
+    #  Bei entsprechender Restkapazität von < 15% muss der Raspberry Pi zwingend abgeschaltet werden und entsprechende Befehle gesendet werden
+    # sudo i2cset -y 1 0x0f 0x31 
+    # Eine Dokumentation der I2C-Register finden Sie in unserem Handbuch auf S.14 – Kapitel 3.2.3.1 Register
     pass
     return
 
@@ -433,7 +446,13 @@ def turn_off_usv_charging():
     charge this secondary backup from our primary cells.'''
     # Die sekundäre Versorgung (Pufferbetrieb) der S.USV kann über folgenden I2C-Befehl deaktiviert werden:
     # sudo i2cset -y 1 0x0f 0x31 – Der Befehl 0x31 signalisiert der S.USV den sekundären Modus zu beenden und in den primären Modus zu schalten.
-
+    try:
+        i2c = SMBus(1)
+        status = i2c.write_byte(USV_ID, 0x27)  # Deactivate Charging circuit as per section 3.2.3.1 in the S.USV documentation
+        logging.info("SUCCESS: Disabling USV charging OK")
+    except Exception as msg:
+        logging.exception(msg)
+        logging.debug("ERROR: Disabling USV charging FAILED")
     return
 
 def led_blink_process(led_pin, frequency=1):
@@ -449,8 +468,8 @@ def led_blink_process(led_pin, frequency=1):
 def main():
     logging.info("System turned on.")
     if not DEBUG:
+        logging.info("Disabling USV charging (OK for actual mission)")
         turn_off_usv_charging()
-        logging.info("USV charging disabled (OK for actual mission)")
     else:
         logging.debug("WARNING: USV charging ENABLED (Don't use this for an actual mission")
 
