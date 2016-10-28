@@ -341,6 +341,14 @@ def sensor_recording():
 def motion_sensor_recording():
     '''Records and saves the motion sensor data.
     This is a separate component due to the much higher rate of measurement'''
+    # motion_sensor_status = mp.Value("i", 0)  # I did not find a ctypes typecode for Boolean :-()
+    # motion_sensor_message = mp.Array("c", "no message from motion sensor")
+    # motion_sensor_G_X = mp.Value("d", 0.0)
+    # motion_sensor_A_X = mp.Value("d", 0.0)
+    # motion_sensor_M_X = mp.Value("d", 0.0)
+    # motion_sensor_pitch = mp.Value("d", 0.0)
+    # motion_sensor_roll = mp.Value("d", 0.0)
+    # motion_sensor_heading = mp.Value("d", 0.0)
     return
 
 def transmission():
