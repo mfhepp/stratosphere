@@ -349,7 +349,8 @@ def motion_sensor_recording():
     # motion_sensor_pitch = mp.Value("d", 0.0)
     # motion_sensor_roll = mp.Value("d", 0.0)
     # motion_sensor_heading = mp.Value("d", 0.0)
-    return
+    time.sleep(1/10) # 10 Hz
+    return motion_sensor_status.value, motion_sensor_message.value
 
 def transmission():
     sstv = True
