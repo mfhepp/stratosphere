@@ -66,6 +66,18 @@ def get_motion_data():
     # see https://www.sparkfun.com/products/13284
     # https://cdn.sparkfun.com/assets/learn_tutorials/3/7/3/LSM9DS1_Datasheet.pdf
     # SENSOR_ID_MOTION
+    # See also here for converting IMU data to yaw, pitch and roll
+    #     https://github.com/micropython-IMU/micropython-fusion
+    # and
+    #    https://github.com/micropython-IMU (but MicroPython)
+    # LSM9DS1 Library:
+    #     https://github.com/hgonzale/PiCar/blob/master/src/picar/IMU.py
+    # Also interesting library:
+    #     https://github.com/mwilliams03/BerryIMU
+    # Update 2017-06: The best solution seems to be
+    #     https://github.com/hoihu/projects/blob/master/raspi-hat/lsm9ds1.py
+    # in combination with
+    #     https://github.com/hoihu/projects/blob/master/raspi-hat/fusion.py
     return {}
 
 def get_humidity():

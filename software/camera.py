@@ -60,7 +60,7 @@ def take_snapshot(image_resolution=(1920, 1080)):
     with picamera.PiCamera() as camera:
         camera.resolution = image_resolution
         if ANNOTATE >= 1:
-            #camera.annotate_background = picamera.Color('black')
+            # camera.annotate_background = picamera.Color('black')
             text_size = int(float(TEXT_SIZE)/1080*image_resolution[1])
             if text_size > 6 and text_size < 160:
                 camera.annotate_text_size = text_size
