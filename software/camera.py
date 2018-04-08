@@ -84,4 +84,5 @@ if __name__ == "__main__":
         GPIO.output(MAIN_CAM_STATUS_LED, status)
         time.sleep(0.5)
     take_snapshot()
+    # maybe show image on monitor
     print "Testing Camera Module completed."

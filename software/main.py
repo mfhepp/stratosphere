@@ -66,70 +66,12 @@ def init():
     GPIO.setup(CAM2_STATUS, GPIO.IN)
     logging.info("Camera 2 status: %s" % GPIO.input(CAM2_STATUS))
 
-    # Transceiver pins
-    GPIO.setup(DRA818_PTT, GPIO.OUT, initial=GPIO.HIGH)  # Tx/Rx control pin: Low->TX; High->RX
-    GPIO.setup(DRA818_PD, GPIO.OUT, initial=GPIO.HIGH)  # Power saving control pin: Low->sleep mode; High->normal mode
-    GPIO.setup(DRA818_HL, GPIO.OUT, initial=GPIO.LOW)  # RF Power Selection: Low->0.5W; floated->1W
-
-    # Initialize and self-test transceiver module
-    # Filter and pre-emphasis settings, see also http://www.febo.com/packet/layer-one/transmit.html
-    # Also see https://github.com/LZ1PPL/VSTv2/blob/master/VSTv2.ino
-    # and https://github.com/darksidelemm/dra818/blob/master/DRA818/DRA818.cpp
-    # and https://github.com/darksidelemm/dra818/blob/master/DRA818/examples/DRA818_Basic/DRA818_Basic.ino
-
     ports = list(serial.tools.list_ports.comports())
     logging.info("%i serial ports found:" % len(ports))
     ports_names = "\n\t".join([p.device for p in ports])
     logging.info(ports_names)
-    with serial.Serial(SERIAL_PORT_TRANSCEIVER, 9600, bytesize=serial.EIGHTBITS,
-                       parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=1) as tx_ser:
-        for i in range(10):
-            tx_ser.reset_input_buffer()
-            time.sleep(1)
-            tx_ser.write("AT+DMOCONNECT\r\n")
-            logging.info('Transceiver command: AT+DMOCONNECT')
-            tx_response = ser.readline().strip()
-            logging.info('Transceiver response: %s (%i of 10 attempts)' % (tx_response, i))
-            if tx_response == "+DMOCONNECT: 0":
-                logging.info("Transceiver found.")
-                break
-        else:
-            ok = False
-            logging.critical("CRITICAL: Transceiver NOT found.")
 
-    # Initialize Transceiver
-    GPIO.output(DRA818_PTT, GPIO.HIGH)  # Tx/Rx control pin: Low->TX; High->RX
-    GPIO.output(DRA818_PD, GPIO.HIGH)  # Power saving control pin: Low->sleep mode; High->normal mode
-    GPIO.output(DRA818_HL, TRANSMISSION_POWER_DEFAULT)  # RF Power Selection: Low->0.5W; floated->1W
-    time.sleep(1)
 
-    # GROUP SETTING Command
-    # T+DMOSETGROUP=GBW,TFV, RFV,Tx_CTCSS,SQ,Rx_CTCSS<CR><LF>
-    # We initially use the SSTV frequency in order to make sure that any spurious
-    # transmissions are not on the APRS frequency
-    command = "AT+DMOSETGROUP=0,%3.4f,%3.4f,0,%i,0\r\n" % (SSTV_FREQUENCY, SSTV_FREQUENCY, SQUELCH)
-    tx_ser.write(command)
-    logging.info('Transceiver command: %s' % command)
-    tx_response = ser.readline().strip()
-    logging.info('Transceiver response: %s' % tx_response)
-    if tx_response == "+DMOCONNECT: 0":
-         logging.info("Transceiver initialization OK")
-    else:
-        ok = False
-        logging.debug("ERROR: Transceiver initialization failed")
-    # SETFILTER Command
-    # AT+SETFILTER=PRE/DE-EMPH,Highpass,Lowpass <CR><LF>
-    # Note: In the datasheet, there is an extra space after the + sign, but I assume this is in error
-    command = "AT+SETFILTER=%1i,%1i,%1i\r\n" % (PRE_EMPHASIS, HIGH_PASS, LOW_PASS)
-    tx_ser.write(command)
-    logging.info('Transceiver command: %s' % command)
-    tx_response = ser.readline().strip()
-    logging.info('Transceiver response: %s' % tx_response)
-    if tx_response == "+DMOCONNECT: 0":
-         logging.info("Transceiver filter configuration OK")
-    else:
-        ok = False
-        logging.debug("ERROR: Transceiver filter configuration failed")
 
     # Test Sensors
     internal_temp.value = sensors.get_temperature_DS18B20(config.SENSOR_ID_INTERNAL_TEMP)
@@ -215,7 +157,7 @@ def init():
     else:
         ok = False
         logging.debug("WARNING: Battery temperature: %.2f" % battery_temp.value)
-    
+
     # TBD: One could test whether the S.USV component is ok
     # a) Found + firmware version
     # b) Battery voltage
@@ -239,7 +181,7 @@ def init():
     else:
         ok = False
         logging.debug('ERROR: Failed to set GPS to flight mode.')
-    
+
     # Test if camera 1 available and returns a reasonable image
     try:
         logging.info("Testing main camera unit.")
@@ -251,7 +193,7 @@ def init():
     except Exception as msg:
         logging.debug("ERROR: Main camera unit cannot be initialized")
         logging.exception(msg)
-        
+
     return ok
 
 def update_gps_info(timestamp, altitude, latitude, longitude):
@@ -323,11 +265,20 @@ def sensor_recording():
                 ATM=%.2f,\
                 HUMID_INT=%.3f,\
                 HUMID_EXT=%.3f,\
-                ORIENTATION=%s' % (latitude.value, longitude.value, altitude.value,
-                internal_temp.value, external_temp.value, external_temp_ADC.value, cpu_temp.value,
-                battery_voltage.value, discharge_current.value, battery_temp.value,
-                atmospheric_pressure.value, humidity_internal.value, humidity_external.value,
-                motion_sensor_message.value)
+                ORIENTATION=%s' % (latitude.value,
+                                   longitude.value,
+                                   altitude.value,
+                                   internal_temp.value,
+                                   external_temp.value,
+                                   external_temp_ADC.value,
+                                   cpu_temp.value,
+                                   battery_voltage.value,
+                                   discharge_current.value,
+                                   battery_temp.value,
+                                   atmospheric_pressure.value,
+                                   humidity_internal.value,
+                                   humidity_external.value,
+                                   motion_sensor_message.value)
             datalogger.info(data_msg)
             time.sleep(0.3)
             GPIO.output(SPARE_STATUS_LED_PIN, GPIO.LOW)
@@ -349,7 +300,7 @@ def motion_sensor_recording():
     # motion_sensor_pitch = mp.Value("d", 0.0)
     # motion_sensor_roll = mp.Value("d", 0.0)
     # motion_sensor_heading = mp.Value("d", 0.0)
-    time.sleep(1/10) # 10 Hz
+    time.sleep(1/10) # 10 Hz should be enough
     return motion_sensor_status.value, motion_sensor_message.value
 
 def transmission():
@@ -378,6 +329,7 @@ def transmission():
 
         # Convert APRS messages to sound files and transmit sound files
         aprs.send_aprs(aprs_msg)
+        # tbd: maybe change SSID so that weather station data can be used?
         aprs.send_aprs(aprs_weather_msg)
 
         # Send audio beacon on SSTV frequency
@@ -419,7 +371,7 @@ def power_monitoring():
     # Abfrage der Spannungsquelle – primärer oder sekundärer Betrieb ( Batterie )
     # Im sekundären Betrieb muss  die Restkapazität bzw. die Ladespannung des Akkus zyklisch abgefragt werden
     #  Bei entsprechender Restkapazität von < 15% muss der Raspberry Pi zwingend abgeschaltet werden und entsprechende Befehle gesendet werden
-    # sudo i2cset -y 1 0x0f 0x31 
+    # sudo i2cset -y 1 0x0f 0x31
     # Eine Dokumentation der I2C-Register finden Sie in unserem Handbuch auf S.14 – Kapitel 3.2.3.1 Register
     pass
     return

@@ -13,7 +13,7 @@ POLL_FREQUENCY = 1  # Sensor poll frequency in Hz
 CALLSIGN = "DL0UBW"  # insert your mission callsign
 APRS_SSID = CALLSIGN + "-11"
 MISSION_TEXT = ""
-APRS_COMMENT = 'UniBwM Stratosphere 2016'
+APRS_COMMENT = 'UniBwM Stratosphere 2018'
 AUDIO_BEACON = "files/bake-test-dl0ubw-8k.wav"
 
 # Directories and filenames
