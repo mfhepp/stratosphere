@@ -167,7 +167,7 @@ class DRA818(object):
         """Turns off the transmitter."""
         GPIO.output(self.ptt_pin, GPIO.HIGH)
         logging.info('Transceiver OFF.')
-        return True
+        return
 
     def set_tx_frequency(self, frequency):
         """Sets the transmission frequency.
