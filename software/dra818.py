@@ -7,6 +7,7 @@ import logging
 import time
 import RPi.GPIO as GPIO
 import serial
+import subprocess
 import config
 
 
@@ -17,7 +18,7 @@ class DRA818_Error(Exception):
     pass
 
 
-def send_command(self, serial_connection, command):
+def send_command(serial_connection, command):
     """Sends a command string to the DRA818 UART and returns the
     response string.
 
@@ -29,9 +30,9 @@ def send_command(self, serial_connection, command):
         str: The response string.
     """
     serial_connection.write(command)
-    logging.info('Transceiver command sent: %s' % command)
+    logging.info('Transceiver command sent: %s' % command.strip())
     tx_response = serial_connection.readline().strip()
-    logging.info('Transceiver response: %s' % tx_response)
+    logging.info('Transceiver response: %s' % tx_response.strip())
     return tx_response
 
 
@@ -93,12 +94,13 @@ class DRA818(object):
                            stopbits=serial.STOPBITS_ONE,
                            timeout=1) as dra818_uart:
             for i in range(10):
+                dra818_uart.reset_output_buffer()
                 dra818_uart.reset_input_buffer()
                 time.sleep(1)
                 logging.info('Init command attempt %i of 10' % i)
                 response = send_command(dra818_uart,
                                         'AT+DMOCONNECT\r\n')
-                if response == '+DMOCONNECT: 0':
+                if response == '+DMOCONNECT:0':
                     logging.info('Transceiver found.')
                     break
             else:
@@ -115,12 +117,12 @@ class DRA818(object):
             # https://github.com/darksidelemm/dra818/blob/master/DRA818/examples/DRA818_Basic/DRA818_Basic.ino
 
             # GROUP SETTING Command
-            # T+DMOSETGROUP=GBW,TFV, RFV,Tx_CTCSS,SQ,Rx_CTCSS<CR><LF>
-            command = 'AT+DMOSETGROUP=0,%3.4f,%3.4f,0,%i,0\r\n' \
+            # AT+DMOSETGROUP=GBW,TFV, RFV,Tx_CTCSS,SQ,Rx_CTCSS<CR><LF>
+            command = 'AT+DMOSETGROUP=1,%3.4f,%3.4f,0000,%i,0000\r\n' \
                 % (self.tx_frequency, self.rx_frequency,
                    self.squelch_level)
             response = send_command(dra818_uart, command)
-            if response == '+DMOCONNECT: 0':
+            if response == '+DMOSETGROUP:0':
                 logging.info('Transceiver initialization OK.')
             else:
                 logging.debug('ERROR: Transceiver init failed.')
@@ -136,7 +138,7 @@ class DRA818(object):
                          int(not self.high_pass),
                          int(not self.low_pass))
             response = send_command(dra818_uart, command)
-            if response == '+DMOCONNECT: 0':
+            if response == '+DMOSETFILTER:0':
                 logging.info('Transceiver filter configuration OK.')
             else:
                 logging.debug('ERROR: Transceiver filter \
@@ -149,11 +151,22 @@ class DRA818(object):
         Agrs:
             full_power (boolean): True sets the RF power level to the
             maximum of 1 W, False sets it to 0.5W."""
-
-        return True
+        if full_power:
+            # Set rf_power_level_pin to high impedance / floating for 1W
+            GPIO.setup(self.rf_power_level_pin, GPIO.IN)
+            logging.info('Transceiver power set to 1W/HIGH.')
+        else:
+            GPIO.setup(self.rf_power_level_pin, GPIO.OUT)
+            GPIO.output(self.rf_power_level_pin, GPIO.LOW)
+            logging.info('Transceiver power set to 0.5W/LOW.')
+        GPIO.output(self.ptt_pin, GPIO.LOW)
+        logging.info('Transceiver ON.')
+        return
 
     def stop_transmitter(self):
         """Turns off the transmitter."""
+        GPIO.output(self.ptt_pin, GPIO.HIGH)
+        logging.info('Transceiver OFF.')
         return True
 
     def set_tx_frequency(self, frequency):
@@ -163,7 +176,30 @@ class DRA818(object):
             frequency (float): The transmit frequency in MHz,
             e.g. 144.800 for the European APRS frequency.
         """
-        return True
+        frequency_old = self.tx_frequency
+        self.tx_frequency = frequency
+        with serial.Serial(self.uart, 9600,
+                           bytesize=serial.EIGHTBITS,
+                           parity=serial.PARITY_NONE,
+                           stopbits=serial.STOPBITS_ONE,
+                           timeout=1) as dra818_uart:
+            dra818_uart.reset_output_buffer()
+            dra818_uart.reset_input_buffer()
+            time.sleep(1)
+            # GROUP SETTING Command
+            # T+DMOSETGROUP=GBW,TFV, RFV,Tx_CTCSS,SQ,Rx_CTCSS<CR><LF>
+            command = 'AT+DMOSETGROUP=1,%3.4f,%3.4f,0000,%i,0000\r\n' \
+                      % (self.tx_frequency, self.rx_frequency,
+                         self.squelch_level)
+            response = send_command(dra818_uart, command)
+            if response == '+DMOSETGROUP:0':
+                logging.info('Tx frequency set to %f MHz.' %
+                             self.tx_frequency)
+                return True
+            else:
+                logging.debug('ERROR: Setting Tx frequency failed.')
+                self.tx_frequency = frequency_old
+                return False
 
     def set_rx_frequency(self, frequency):
         """Sets the receive frequency.
@@ -172,7 +208,30 @@ class DRA818(object):
             frequency (float): The receive frequency in MHz,
             e.g. 144.800 for the European APRS frequency.
         """
-        return True
+        frequency_old = self.rx_frequency
+        self.rx_frequency = frequency
+        with serial.Serial(self.uart, 9600,
+                           bytesize=serial.EIGHTBITS,
+                           parity=serial.PARITY_NONE,
+                           stopbits=serial.STOPBITS_ONE,
+                           timeout=1) as dra818_uart:
+            dra818_uart.reset_output_buffer()
+            dra818_uart.reset_input_buffer()
+            time.sleep(1)
+            # GROUP SETTING Command
+            # T+DMOSETGROUP=GBW,TFV, RFV,Tx_CTCSS,SQ,Rx_CTCSS<CR><LF>
+            command = 'AT+DMOSETGROUP=1,%3.4f,%3.4f,0000,%i,0000\r\n' \
+                      % (self.tx_frequency, self.rx_frequency,
+                         self.squelch_level)
+            response = send_command(dra818_uart, command)
+            if response == '+DMOSETGROUP:0':
+                logging.info('Rx frequency set to %f MHz.' %
+                             self.rx_frequency)
+                return True
+            else:
+                logging.debug('ERROR: Setting Rx frequency failed.')
+                self.rx_frequency = frequency_old
+                return False
 
     def set_squelch(self, squelch_level):
         """Sets the squelch level.
@@ -180,7 +239,32 @@ class DRA818(object):
         Args:
             squelch_level (int): The initial squelch level (0..8).
         """
-        return True
+        if squelch_level > 8 or squelch_level < 0:
+            return False
+        squelch_old = self.squelch_level
+        self.squelch_level = squelch_level
+        with serial.Serial(self.uart, 9600,
+                           bytesize=serial.EIGHTBITS,
+                           parity=serial.PARITY_NONE,
+                           stopbits=serial.STOPBITS_ONE,
+                           timeout=1) as dra818_uart:
+            dra818_uart.reset_output_buffer()
+            dra818_uart.reset_input_buffer()
+            time.sleep(1)
+            # GROUP SETTING Command
+            # T+DMOSETGROUP=GBW,TFV, RFV,Tx_CTCSS,SQ,Rx_CTCSS<CR><LF>
+            command = 'AT+DMOSETGROUP=1,%3.4f,%3.4f,0000,%i,0000\r\n' \
+                      % (self.tx_frequency, self.rx_frequency,
+                         self.squelch_level)
+            response = send_command(dra818_uart, command)
+            if response == '+DMOSETGROUP:0':
+                logging.info('Squelch level to %i.' %
+                             self.squelch_level)
+                return True
+            else:
+                logging.debug('ERROR: Setting squelch level failed.')
+                self.squelch_level = squelch_old
+                return False
 
     def set_filters(self, pre_emphasis=None, high_pass=None,
                     low_pass=None):
@@ -207,13 +291,16 @@ class DRA818(object):
                            parity=serial.PARITY_NONE,
                            stopbits=serial.STOPBITS_ONE,
                            timeout=1) as dra818_uart:
+            dra818_uart.reset_output_buffer()
+            dra818_uart.reset_input_buffer()
+            time.sleep(1)
             # Note: On = 0, Off = 0, so we use int(not <boolean>)
             command = 'AT+SETFILTER=%1i,%1i,%1i\r\n' \
                       % (int(not pre_emphasis),
                          int(not high_pass),
                          int(not low_pass))
             response = send_command(dra818_uart, command)
-            if response == '+DMOCONNECT: 0':
+            if response == '+DMOSETFILTER:0':
                 logging.info('Transceiver filter configuration OK.')
                 return True
             else:
@@ -232,12 +319,20 @@ if __name__ == '__main__':
         frequency=145.525,
         squelch_level=0)
     print 'Now listening at 145.525 MHz. Press CTRL-C to quit.'
+    print 'Testing Squelch setings.'
+    for squelch_level in [0, 2, 8]:
+        print 'Setting squelch to %i' % squelch_level
+        status = transceiver.set_squelch(squelch_level)
+        print '--> Status: %s' % status
+        time.sleep(1)
+    transceiver.set_squelch(1)
     print 'Testing filter settings.'
-    import itertools
-    for pe, hp, lp in list(itertools.product([True, False], repeat=3)):
+    for pe, hp, lp in [(False, False, False), (True, False, True),
+                       (True, True, True)]:
         print 'pre_emphasis: %s, high_pass: %s, low_pass: %s' % (pe, hp, lp)
-        transceiver.set_filters(pre_emphasis=pe, high_pass=hp,
-                                low_pass=lp)
+        status = transceiver.set_filters(pre_emphasis=pe, high_pass=hp,
+                                         low_pass=lp)
+        print '--> Status: %s' % status
         time.sleep(1)
     transceiver.set_filters(pre_emphasis=True, high_pass=False, low_pass=False)
     while True:
@@ -245,8 +340,19 @@ if __name__ == '__main__':
             raw_input('Press ENTER to start transmission.')
             print 'Now sending.'
             transceiver.start_transmitter()
-            raw_input('Press ENTER to stop transmission.')
+            time.sleep(0.5)
+            for fn in ['files/bake-english-16k.wav',
+                       'files/sine-wave-1000Hz_-6dB.wav']:
+                command = 'aplay %s' % fn
+                subprocess.call(command, shell=True)
+
+            time.sleep(0.5)
+            # raw_input('Press ENTER to stop transmission.')
             transceiver.stop_transmitter()
             print 'Back to receive'
+        except KeyboardInterrupt:
+            print 'CTRL-C detected.'
+            transceiver.stop_transmitter()
+            break
         finally:
             transceiver.stop_transmitter()
