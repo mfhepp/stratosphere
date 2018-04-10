@@ -11,7 +11,6 @@
 
 import logging
 import os
-import time
 import subprocess
 import config
 
@@ -43,6 +42,7 @@ def convert_image_to_sstv_wav(image_path, protocol='r36', rate=22050):
     if os.path.isfile(image_path):
         command = "./pisstvpp/pisstvpp -p %s -r%s %s" % \
                   (protocol, rate, image_path)
+        logging.debug('Command: %s' % command)
         return_code = subprocess.call(command, shell=True)
         if return_code == 0:
             return image_path + '.wav'
@@ -50,58 +50,6 @@ def convert_image_to_sstv_wav(image_path, protocol='r36', rate=22050):
             return False
     else:
         return None
-
-
-def play_audio_file(audio_file_path):
-    """Plays the audio file at the given path via the RBPi's current
-    audio device.
-
-    Args:
-        audio_file_path (str): The absolute or relative path of the
-        audio file to be played. The file format must be supported by
-        the aplay command.
-
-    Returns:
-        True if the command was successful, False in case of any error.
-    """
-    if os.path.isfile(audio_file_path):
-        command = "aplay %s" % audio_file_path
-        return_code = subprocess.call(command, shell=True)
-        if return_code == 0:
-            return True
-        else:
-            return False
-    else:
-        return False
-
-
-def transmit_audio_file(transceiver, frequency, audio_file_path,
-                        full_power=False):
-    """Transmits the audio file via the given DRA818 transceiver object.
-
-    Args:
-        transceiver (DRA818): The DRA818 transceiver object.
-
-        frequency (float): The frequency in MHz. Must be a multiple of
-        25 KHz and within the allowed ham radio band allocation.
-
-        audio_file_path (str): The path of the audio file.
-
-        full_power (bolean): Tx power level. True = 1 W, False = 0.5 W.
-
-    Returns:
-        True: Transmission successful.
-        False: Transmission failed.
-    """
-    if transceiver.set_tx_frequency(frequency):
-        time.sleep(1)
-        transceiver.start_transmitter(full_power=full_power)
-        status = play_audio_file(audio_file_path)
-        time.sleep(1)
-        transceiver.stop_transmitter()
-    else:
-        return False
-    return status
 
 
 def send_sstv(transceiver, frequency, image_path,
@@ -125,9 +73,10 @@ def send_sstv(transceiver, frequency, image_path,
     wav = convert_image_to_sstv_wav(image_path,
                                     protocol=protocol,
                                     rate=22050)
+    logging.debug('Return of SSTV: %s' % wav)
     if wav is not None:
-        status = transmit_audio_file(transceiver, frequency, wav,
-                                     full_power=False)
+        status = transceiver.transmit_audio_file(frequency, [wav],
+                                                 full_power=False)
         return status
     else:
         return False
@@ -148,10 +97,9 @@ if __name__ == "__main__":
               config.SSTV_FREQUENCY
         raw_input('Press ENTER to start audio beacon transmission.')
         print 'Transmitting audio message.'
-        status = transmit_audio_file(
-            transceiver,
+        status = transceiver.transmit_audio_file(
             config.SSTV_FREQUENCY,
-            'files/beacon-english.wav',
+            ['files/beacon-english.wav'],
             full_power=False)
         print 'Status: %s' % status
         raw_input('Press ENTER to start SSTV transmission.')
@@ -164,6 +112,5 @@ if __name__ == "__main__":
         print 'Status: %s' % status
     except KeyboardInterrupt:
         print 'CTRL-C detected.'
-        transceiver.stop_transmitter()
     finally:
         transceiver.stop_transmitter()

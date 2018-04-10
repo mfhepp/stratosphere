@@ -4,6 +4,7 @@
 # Library for the DRA818 transceiver module
 #
 import logging
+import os
 import time
 import RPi.GPIO as GPIO
 import serial
@@ -34,6 +35,29 @@ def send_command(serial_connection, command):
     tx_response = serial_connection.readline().strip()
     logging.info('Transceiver response: %s' % tx_response.strip())
     return tx_response
+
+
+def _play_audio_file(audio_file_path):
+    """Plays the audio file at the given path via the RBPi's current
+    audio device.
+
+    Args:
+        audio_file_path (str): The absolute or relative path of the
+        audio file to be played. The file format must be supported by
+        the aplay command.
+
+    Returns:
+        True if the command was successful, False in case of any error.
+    """
+    if os.path.isfile(audio_file_path):
+        command = "aplay %s" % audio_file_path
+        return_code = subprocess.call(command, shell=True)
+        if return_code == 0:
+            return True
+        else:
+            return False
+    else:
+        return False
 
 
 class DRA818(object):
@@ -323,6 +347,41 @@ class DRA818(object):
                 dra818_uart.close()
                 return False
 
+    def transmit_audio_file(self, frequency, audio_files,
+                            full_power=False):
+        """Transmits the audio file via the DRA818 transceiver object.
+
+        Args:
+            frequency (float): The frequency in MHz. Must be a multiple of
+            25 KHz and within the allowed ham radio band allocation.
+
+            audio_files (list): A list of strings with the path of audio
+            files.
+
+            full_power (bolean): Tx power level. True = 1 W, False = 0.5 W.
+
+        Returns:
+            True: Transmission successful.
+            False: Transmission failed.
+        """
+        try:
+            if self.set_tx_frequency(frequency):
+                self.start_transmitter(full_power=full_power)
+                time.sleep(1)
+                status = True
+                logging.debug('WAV list: %s' % audio_files)
+                for audio_file_path in audio_files:
+                    logging.debug('WAV path: %s' % audio_file_path)
+                    status = status and _play_audio_file(audio_file_path)
+                    time.sleep(0.4)
+                time.sleep(1)
+                self.stop_transmitter()
+            else:
+                return False
+            return status
+        finally:
+            self.stop_transmitter()
+
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
@@ -354,21 +413,15 @@ if __name__ == '__main__':
         try:
             raw_input('Press ENTER to start transmission.')
             print 'Now sending.'
-            transceiver.start_transmitter()
+            list_of_files = ['files/beacon-english.wav',
+                             'files/aprs-1200hz-2200hz-6db.wav',
+                             'files/selftest-ok.wav']
+            transceiver.transmit_audio_file(transceiver.tx_frequency,
+                                            list_of_files)
             time.sleep(0.5)
-            for fn in ['files/beacon-english.wav',
-                       'files/aprs-1200hz-2200hz-6db.wav',
-                       'files/selftest-ok.wav']:
-                command = 'aplay %s' % fn
-                subprocess.call(command, shell=True)
-
-            time.sleep(0.5)
-            # raw_input('Press ENTER to stop transmission.')
-            transceiver.stop_transmitter()
             print 'Back to receive'
         except KeyboardInterrupt:
             print 'CTRL-C detected.'
-            transceiver.stop_transmitter()
             break
         finally:
             transceiver.stop_transmitter()
