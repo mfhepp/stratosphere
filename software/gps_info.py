@@ -42,7 +42,7 @@ def set_to_flight_mode():
     if device is None:
         device, baudrate = get_device_settings()
         if device is None:
-            logging.debug("Erro: No GPS device found")
+            logging.debug("Error: No GPS device found")
             return False
         else:
             #print "listen to serial device '%s' with baud rate %d" %(device, baudrate)

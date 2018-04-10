@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # dra818.py
-# Module for the DRA818 transceiver module
+# Library for the DRA818 transceiver module
 #
 import logging
 import time
@@ -93,9 +93,12 @@ class DRA818(object):
                            parity=serial.PARITY_NONE,
                            stopbits=serial.STOPBITS_ONE,
                            timeout=1) as dra818_uart:
+            time.sleep(0.3)
+            dra818_uart.reset_output_buffer()
+            time.sleep(0.3)
+            dra818_uart.reset_input_buffer()
+            time.sleep(0.3)
             for i in range(10):
-                dra818_uart.reset_output_buffer()
-                dra818_uart.reset_input_buffer()
                 time.sleep(1)
                 logging.info('Init command attempt %i of 10' % i)
                 response = send_command(dra818_uart,
@@ -105,6 +108,7 @@ class DRA818(object):
                     break
             else:
                 logging.critical("CRITICAL: Transceiver NOT found.")
+                dra818_uart.close()
                 raise DRA818_Error
 
             # Now initialize and self-test transceiver module.
@@ -126,6 +130,7 @@ class DRA818(object):
                 logging.info('Transceiver initialization OK.')
             else:
                 logging.debug('ERROR: Transceiver init failed.')
+                dra818_uart.close()
                 raise DRA818_Error
 
             # SETFILTER Command
@@ -143,7 +148,9 @@ class DRA818(object):
             else:
                 logging.debug('ERROR: Transceiver filter \
                                configuration failed.')
+                dra818_uart.close()
                 raise DRA818_Error
+            dra818_uart.close()
 
     def start_transmitter(self, full_power=False):
         """Turns on the transmitter.
@@ -195,10 +202,12 @@ class DRA818(object):
             if response == '+DMOSETGROUP:0':
                 logging.info('Tx frequency set to %f MHz.' %
                              self.tx_frequency)
+                dra818_uart.close()
                 return True
             else:
                 logging.debug('ERROR: Setting Tx frequency failed.')
                 self.tx_frequency = frequency_old
+                dra818_uart.close()
                 return False
 
     def set_rx_frequency(self, frequency):
@@ -227,10 +236,12 @@ class DRA818(object):
             if response == '+DMOSETGROUP:0':
                 logging.info('Rx frequency set to %f MHz.' %
                              self.rx_frequency)
+                dra818_uart.close()
                 return True
             else:
                 logging.debug('ERROR: Setting Rx frequency failed.')
                 self.rx_frequency = frequency_old
+                dra818_uart.close()
                 return False
 
     def set_squelch(self, squelch_level):
@@ -260,10 +271,12 @@ class DRA818(object):
             if response == '+DMOSETGROUP:0':
                 logging.info('Squelch level to %i.' %
                              self.squelch_level)
+                dra818_uart.close()
                 return True
             else:
                 logging.debug('ERROR: Setting squelch level failed.')
                 self.squelch_level = squelch_old
+                dra818_uart.close()
                 return False
 
     def set_filters(self, pre_emphasis=None, high_pass=None,
@@ -302,10 +315,12 @@ class DRA818(object):
             response = send_command(dra818_uart, command)
             if response == '+DMOSETFILTER:0':
                 logging.info('Transceiver filter configuration OK.')
+                dra818_uart.close()
                 return True
             else:
                 logging.debug('ERROR: Transceiver filter \
                               configuration failed.')
+                dra818_uart.close()
                 return False
 
 
@@ -341,8 +356,9 @@ if __name__ == '__main__':
             print 'Now sending.'
             transceiver.start_transmitter()
             time.sleep(0.5)
-            for fn in ['files/bake-english-16k.wav',
-                       'files/sine-wave-1000Hz_-6dB.wav']:
+            for fn in ['files/beacon-english.wav',
+                       'files/aprs-1200hz-2200hz-6db.wav',
+                       'files/selftest-ok.wav']:
                 command = 'aplay %s' % fn
                 subprocess.call(command, shell=True)
 

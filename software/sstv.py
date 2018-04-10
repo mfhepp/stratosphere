@@ -13,7 +13,6 @@ import logging
 import os
 import time
 import subprocess
-import shared_memory
 import config
 
 
@@ -42,8 +41,8 @@ def convert_image_to_sstv_wav(image_path, protocol='r36', rate=22050):
 
 # TODO: Resize image to Robots 36 or other format
     if os.path.isfile(image_path):
-        command = "./pisstvpp/pisstvpp -p %s -r%s %s" % (protocol, rate,
-                                                image_path)
+        command = "./pisstvpp/pisstvpp -p %s -r%s %s" % \
+                  (protocol, rate, image_path)
         return_code = subprocess.call(command, shell=True)
         if return_code == 0:
             return image_path + '.wav'
@@ -152,7 +151,7 @@ if __name__ == "__main__":
         status = transmit_audio_file(
             transceiver,
             config.SSTV_FREQUENCY,
-            'files/bake-english-with-SSTV-Format-16k.wav',
+            'files/beacon-english.wav',
             full_power=False)
         print 'Status: %s' % status
         raw_input('Press ENTER to start SSTV transmission.')

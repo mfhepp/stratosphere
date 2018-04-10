@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# sensors.py
+# camera.py
 # Library for accessing the sensors of our probe
 # tbd: super-robust error handling
 # i2c docs e.g. from http://www.raspberry-projects.com/pi/programming-in-python/i2c-programming-in-python/using-the-i2c-interface-2
@@ -15,7 +15,6 @@ import time
 import RPi.GPIO as GPIO
 import logging
 import multiprocessing as mp
-
 from shared_memory import *
 
 def attach_questionmark(value, yes):

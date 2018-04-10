@@ -7,9 +7,9 @@
 # i2c docs e.g. from http://www.raspberry-projects.com/pi/programming-in-python/i2c-programming-in-python/using-the-i2c-interface-2
 
 from subprocess import PIPE, Popen
-
-from config import *
 from w1thermsensor import W1ThermSensor
+import config
+
 
 def get_temperature_cpu():
     """Returns the temperature of the Raspberry CPU in degree Celsius"""
