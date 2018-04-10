@@ -5,7 +5,9 @@
 # routines for initializing and controlling the DRA818V transceiver module
 # see also https://github.com/darksidelemm/dra818/blob/master/DRA818/DRA818.cpp
 # APRS Protocol Reference
-#
+# See https://github.com/casebeer/afsk
+# and
+# https://github.com/rossengeorgiev/aprs-python
 # Version 1.0: http://www.aprs.org/doc/APRS101.PDF
 # Version 1.1: http://www.aprs.org/aprs11.html
 # Version 1.2: http://www.aprs.org/aprs12.html
@@ -61,11 +63,13 @@ def generate_aprs_telemetry_definition():
     # The messages addressee is the callsign of the station transmitting the telemetry data. For example, if N0QBF launches a balloon with the callsign N0QBF-11, then the four messages are addressed to N0QBF-11.
     return ""
 
+# TIME = UTC!!!
 
 def generate_aprs_telemetry_report():
     # all data comes from the shared memory variables
     # sequence = (sequence + 1) & 0x1FFF  # see http://he.fi/doc/aprs-base91-comment-telemetry.txt
     # TBD: the newer Base91 telemetry allows for bigger sequence numbers
+# TIME = UTC!!!
     if sequence < 999:
         sequence += 1
     else:
@@ -107,7 +111,7 @@ def generate_aprs_telemetry_report():
 def generate_aprs_position():
     '''Generate APRS string'''
     # increment counter and  make sure that it and all of the telemetry values never get values higher than 8280
-
+# TIME = UTC!!!
     utc = datetime.utcnow()
     timestamp_dhm = "%d%02d%02d%z" % (utc.day, utc.hour, utc.minute)
     timestamp_hms = "%d%02d%02d%h" % (utc.hour, utc.minute, utc.second)  # This format may not be used in Status Reports.

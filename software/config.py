@@ -44,7 +44,7 @@ logging.getLogger().addHandler(std_logger)
 
 # GPS
 SERIAL_PORT_GPS = "/dev/ttyUSB0"  # just an example
-# GPS_POLLTIME = 2 # in seconds  # Not used
+GPS_POLLTIME = 2 # in seconds
 # GPS_ALTITUDE_MODE_CEILING = 10000  # Not used
 # Altitude at which GPS will be switched to Airborne-6 mode
 # with <1g Acceleration; TBD

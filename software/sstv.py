@@ -2,12 +2,11 @@
 # -*- coding: utf-8 -*-
 
 # sstv.py
-# All routines for generating SSTV images
-
-# TBD
-# - set bandwidth / important for narrow-band ham radio transmissions.
-# - fine-tune iming as impropper timing results in slanted images
-# use https://github.com/hatsunearu/pisstvpp
+# All routines for generating and transmitting SSTV images
+#
+# $ git clone https://github.com/hatsunearu/pisstvpp
+# $ sudo apt-get install build-essential libgd-dev libmagic-dev
+# $ make make pisstvpp  (in the directory where PiSSTV resides in)
 
 import logging
 import os
