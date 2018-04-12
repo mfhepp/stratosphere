@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # gps_info.py
-# taken from Alex Stolz' camera module code
+# Taken from Alex Stolz' camera module code
+# $ sudo pip install pynmea2
 # https://blog.retep.org/2012/06/18/getting-gps-to-work-on-a-raspberry-pi/
 # $ sudo lsusb
 # $ tail -n 200 /var/log/syslog | grep USB | grep tty
@@ -14,52 +15,29 @@
 # $ ntpq -p
 
 import logging
+import os
+import time
 import serial
 import pynmea2
 from serial.tools import list_ports
 from shared_memory import *
 import config
+import utility
 
 device = None
 baudrate = None
 
-
-def get_device_settings():
-    """Tries to find the UART port and baudrate of an attached GPS
-    device.for
-
-    Returns:
-        uart (str): The path of the GPS UART.
-
-        baud (int): The baudrate (4800 or 9600)
-    """
-    for o in list_ports.comports():
-        for baud in (4800, 9600):
-            try:
-                with serial.Serial(o.device, baud, timeout=1) as ser:
-                    for i in range(10):
-                        line = ser.readline()
-                        if line.startswith('$GPRMC') or \
-                                line.startswith('$GPGGA'):
-                            return o.device, baud
-            except Exception as msg:
-                logging.exception(msg)
-    return None, None
-
-
-def set_to_flight_mode():
+def set_to_flight_mode(uart, baudrate):
     """Sets the Neo 6M GPS module to flight mode for high altitude
     operation.Based on the work described in
-    https://ukhas.org.uk/guides:ublox6."""
-    global device, baudrate
-    if device is None:
-        device, baudrate = get_device_settings()
-        if device is None:
-            logging.debug('Error: No GPS device found.')
-            return False
-        else:
-            logging.debug('Sending flight mode commands to GPS at %s \
-                with baud rate %d.' % (device, baudrate))
+    https://ukhas.org.uk/guides:ublox6.
+
+    Args:
+        uart (str): The path of the GPS UART.
+
+        baudrate (int): The GPS baudrate (4800 or 9600)."""
+    logging.debug('Sending flight mode commands to GPS at %s \
+                with baud rate %d.' % (uart, baudrate))
     # Command sequence taken from https://ukhas.org.uk/guides:ublox6
     flight_command = [
         0xB5, 0x62, 0x06, 0x24, 0x24, 0x00, 0xFF, 0xFF,
@@ -85,10 +63,10 @@ def set_to_flight_mode():
         chk_b += chk_a  # CK_B
     expected_response.append(chk_a)
     expected_response.append(chk_b)
-    with serial.Serial(device, baudrate, timeout=3) as ser:
+    with serial.Serial(uart, baudrate, timeout=3) as ser:
         for byte in flight_command:
             ser.write(chr(byte))
-            logging.debug('GPS Command %02x HEX to %s.' % (byte, device))
+            logging.debug('GPS Command %02x HEX to %s.' % (byte, uart))
         ack = ser.read(10)  # read up to ten bytes
     ack = [ord(c) for c in ack]
     status = cmp(ack, expected_response)
@@ -99,33 +77,31 @@ def set_to_flight_mode():
     return status
 
 
-def get_info():
-    """Tries to fetch and parse a new $GPRMC or $GPGGA from the GPS.the
+def get_info(uart, baudrate):
+    """Tries to fetch and parse a new $GPRMC or $GPGGA from the GPS.
+
+    Args:
+        uart (str): The path of the GPS UART.
+
+        baudrate (int): The GPS baudrate (4800 or 9600).
 
     Returns:
         msg: a pynmea2 message object
 
         date: a pynmea2 date object
     """
-    global device, baudrate
-    if device is None:
-        device, baudrate = get_device_settings()
-        if device is None:
-            return "not available", "no date"
-        else:
-            logging.info('GPS: Listening to serial port %s with baud \
-                rate %d' % (device, baudrate))
-    with serial.Serial(device, baudrate, timeout=1) as ser:
+    with serial.Serial(uart, baudrate, timeout=1) as ser:
         date = None
         while True:
             line = ser.readline()
-            gps_logger(line.rstrip())
+            logging.debug('NMEA: %s' % line.strip())
+            # gps_logger(line.rstrip())
             if line.startswith("$GPRMC"):
                 msg = pynmea2.parse(line)
                 date = msg.datestamp
             elif line.startswith("$GPGGA"):
                 msg = pynmea2.parse(line)
-                logging.debug('GPS position: %s lat=%s long=%s alt=%s'
+                logging.debug('GPS data: time=%s lat=%s long=%s alt=%s'
                               % (msg.timestamp, msg.lat, msg.lon,
                                  msg.altitude))
                 return msg, date
@@ -140,8 +116,9 @@ def update_gps_info(timestamp, altitude, latitude, longitude):
     Args:
         timestamp, altitude, latitude, longitude - shared memory variables
     """
-    while continue_gps:
-        gps_data, datestamp = get_info()
+    while continue_gps.value:
+        gps_data, datestamp = get_info(config.GPS_SERIAL_PORT,
+                                       config.GPS_SERIAL_PORT_BAUDRATE)
         try:
             if datestamp is not None:
                 timestamp.value = datestamp.strftime("%Y-%m-%dT") \
@@ -149,7 +126,10 @@ def update_gps_info(timestamp, altitude, latitude, longitude):
             else:
                 timestamp.value = str(gps_data.timestamp)
             try:
-                os.system("sudo date --set '%s'" % timestamp.value)
+                # os.system("sudo date --set '%s' > /dev/null 2>&1" %
+                os.system("sudo date --set '%s' > /dev/null" %
+                          timestamp.value)
+                logging.debug('System time updated from GPS.')
             except Exception as msg_time:
                 logging.error('Could not set the system time.')
                 logging.exception(msg_time)
@@ -176,3 +156,41 @@ def update_gps_info(timestamp, altitude, latitude, longitude):
             logging.exception(msg)
         time.sleep(config.GPS_POLLTIME)
     return
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
+    utility.check_and_initialize_USB()
+    gps_handler = logging.FileHandler(config.USB_DIR + 'gps.csv')
+    # gps_handler.setFormatter(formatter)
+    gps_logger = logging.getLogger('gps')
+    gps_logger.setLevel(logging.DEBUG)
+    gps_logger.addHandler(gps_handler)
+    uart = config.GPS_SERIAL_PORT
+    baudrate = config.GPS_SERIAL_PORT_BAUDRATE
+    logging.info('GPS found at %s with %i baud' % (uart, baudrate))
+    logging.info('Trying to read current position.')
+    msg, date = get_info(uart, baudrate)
+    logging.info('Trying to set GPS to flight mode.')
+    set_to_flight_mode(uart, baudrate)
+    # Initialize GPS subprocess or thread
+    p = mp.Process(target=update_gps_info,
+                   args=(timestamp, altitude, latitude, longitude))
+    p.start()
+    # Wait for valid GPS position and time, and sync time
+    logging.info('Waiting for valid initial GPS position.')
+    while longitude_outdated.value > 0 or latitude_outdated.value > 0:
+        time.sleep(1)
+    logging.info('Now reading GPS info from shared memory.')
+    for i in range(10):
+        logging.info('GPS: lat=%f %s, long=%f %s, alt=%fm, timestamp: %s' %
+                     (latitude.value, latitude_direction.value,
+                      longitude.value, longitude_direction.value,
+                      altitude.value, timestamp.value))
+        time.sleep(1)
+    continue_gps.value = 0
+    time.sleep(1)
+    p.terminate()
+    p.join()
+    logging.info('Goodbye.')
+

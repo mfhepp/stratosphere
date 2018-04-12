@@ -13,6 +13,7 @@ import serial
 import RPi.GPIO as GPIO
 from smbus import SMBus
 import config
+import utility
 import sensors
 import gps_info
 import camera
@@ -166,9 +167,9 @@ humidity_external = mp.Value("d", 0.0)
 
 
 if __name__ == "__main__":
+    utility.check_and_initialize_USB()
     # Configure logging
     FORMAT = '%(asctime)-15s %(levelname)10s:  %(message)s'
-    # Log to a file
     logging.basicConfig(filename=os.path.join(
         config.USB_DIR, "main.log"), level=logging.DEBUG, format=FORMAT)
     # Log to standard output as well

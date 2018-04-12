@@ -25,6 +25,14 @@ SSTV_DIR = "/sstv/"
 DATA_DIR = "/data/"
 DISK_SPACE_MINIMUM = 16 * 1024 * 1024 * 1024  # 16 GB
 
+
+def check_filesystem():
+    """Makes sure that the USB stick is available, writable, has
+    sufficient disk space, and that the directories exist.
+    If the directories do not exist, they will be created."""
+
+
+
 # Test of USB stick is available, if not, try to mount
 # Test if USB stick has at least 30 GB free capacity
 
@@ -43,7 +51,8 @@ std_logger.setFormatter(logging.Formatter(FORMAT))
 logging.getLogger().addHandler(std_logger)
 
 # GPS
-SERIAL_PORT_GPS = "/dev/ttyUSB0"  # just an example
+GPS_SERIAL_PORT = "/dev/ttyUSB0"  # just an example
+GPS_SERIAL_PORT_BAUDRATE = 9600  # just an example
 GPS_POLLTIME = 2 # in seconds
 # GPS_ALTITUDE_MODE_CEILING = 10000  # Not used
 # Altitude at which GPS will be switched to Airborne-6 mode
