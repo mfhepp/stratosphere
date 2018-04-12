@@ -17,15 +17,13 @@
 import logging
 import os
 import time
+import datetime
 import serial
 import pynmea2
-from serial.tools import list_ports
-from shared_memory import *
 import config
 import utility
+from shared_memory import *
 
-device = None
-baudrate = None
 
 def set_to_flight_mode(uart, baudrate):
     """Sets the Neo 6M GPS module to flight mode for high altitude
@@ -102,19 +100,21 @@ def get_info(uart, baudrate):
             elif line.startswith("$GPGGA"):
                 msg = pynmea2.parse(line)
                 logging.debug('GPS data: time=%s lat=%s long=%s alt=%s'
-                              % (msg.timestamp, msg.lat, msg.lon,
+                              % (msg.timestamp, msg.latitude, msg.longitude,
                                  msg.altitude))
                 return msg, date
 
 
-def update_gps_info(timestamp, altitude, latitude, longitude):
+def update_gps_info(timestamp, altitude, latitude, longitude, logger):
     """This function continuously updates the shared memory variables
     for GPS data and is meant to run as a child process.
+    It also writes a GPS position log file.
 
-    It stops once the shared memory variable continue_gps gets False.
+    It stops once the shared memory variable continue_gps contains 0.
 
     Args:
         timestamp, altitude, latitude, longitude - shared memory variables
+        logger: A logger object for the GPS data. Disabled if None.
     """
     while continue_gps.value:
         gps_data, datestamp = get_info(config.GPS_SERIAL_PORT,
@@ -139,21 +139,42 @@ def update_gps_info(timestamp, altitude, latitude, longitude):
         try:
             altitude.value = gps_data.altitude
             altitude_outdated.value = 0
+        except (TypeError, ValueError):
+            altitude_outdated.value = 1
+            logging.warning('GPS altitude data invalid.')
         except Exception as msg:
             altitude_outdated.value = 1
             logging.exception(msg)
         try:
-            latitude.value = float(gps_data.lat) / 100
+            latitude.value = float(gps_data.latitude)
             latitude_outdated.value = 0
+        except (TypeError, ValueError):
+            latitude_outdated.value = 1
+            logging.warning('GPS latitude data invalid.')
         except Exception as msg:
             latitude_outdated.value = 1
             logging.exception(msg)
         try:
-            longitude.value = float(gps_data.lon) / 100
+            longitude.value = float(gps_data.longitude)
             longitude_outdated.value = 0
+        except (TypeError, ValueError):
+            longitude_outdated.value = 1
+            logging.warning('GPS longitude data invalid.')
         except Exception as msg:
             longitude_outdated.value = 1
             logging.exception(msg)
+        if logger is not None:
+            logger.info('%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' %
+                        (datetime.datetime.utcnow().isoformat(),
+                         latitude.value,
+                         latitude_direction.value,
+                         longitude.value,
+                         longitude_direction.value,
+                         altitude.value,
+                         timestamp.value,
+                         latitude_outdated.value,
+                         longitude_outdated.value,
+                         altitude_outdated.value))
         time.sleep(config.GPS_POLLTIME)
     return
 
@@ -162,7 +183,6 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     utility.check_and_initialize_USB()
     gps_handler = logging.FileHandler(config.USB_DIR + 'gps.csv')
-    # gps_handler.setFormatter(formatter)
     gps_logger = logging.getLogger('gps')
     gps_logger.setLevel(logging.DEBUG)
     gps_logger.addHandler(gps_handler)
@@ -175,19 +195,21 @@ if __name__ == '__main__':
     set_to_flight_mode(uart, baudrate)
     # Initialize GPS subprocess or thread
     p = mp.Process(target=update_gps_info,
-                   args=(timestamp, altitude, latitude, longitude))
+                   args=(timestamp, altitude, latitude, longitude,
+                         gps_logger))
     p.start()
     # Wait for valid GPS position and time, and sync time
     logging.info('Waiting for valid initial GPS position.')
     while longitude_outdated.value > 0 or latitude_outdated.value > 0:
         time.sleep(1)
     logging.info('Now reading GPS info from shared memory.')
-    for i in range(10):
+    for i in range(20):
         logging.info('GPS: lat=%f %s, long=%f %s, alt=%fm, timestamp: %s' %
                      (latitude.value, latitude_direction.value,
                       longitude.value, longitude_direction.value,
                       altitude.value, timestamp.value))
-        time.sleep(1)
+
+        time.sleep(3)
     continue_gps.value = 0
     time.sleep(1)
     p.terminate()
