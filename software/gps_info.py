@@ -34,8 +34,8 @@ def set_to_flight_mode(uart, baudrate):
         uart (str): The path of the GPS UART.
 
         baudrate (int): The GPS baudrate (4800 or 9600)."""
-    logging.debug('Sending flight mode commands to GPS at %s \
-                with baud rate %d.' % (uart, baudrate))
+    logging.debug('Sending flight mode commands to GPS at %s' % uart +
+                  'with baud rate %d.' % baudrate)
     # Command sequence taken from https://ukhas.org.uk/guides:ublox6
     flight_command = [
         0xB5, 0x62, 0x06, 0x24, 0x24, 0x00, 0xFF, 0xFF,
@@ -75,13 +75,16 @@ def set_to_flight_mode(uart, baudrate):
     return status
 
 
-def get_info(uart, baudrate):
+def get_info(uart, baudrate, nmea_logger=None):
     """Tries to fetch and parse a new $GPRMC or $GPGGA from the GPS.
 
     Args:
         uart (str): The path of the GPS UART.
 
         baudrate (int): The GPS baudrate (4800 or 9600).
+
+        nmea_logger: A logger object for raw NMEA data. If note, the
+        default logger will be used.
 
     Returns:
         msg: a pynmea2 message object
@@ -92,8 +95,10 @@ def get_info(uart, baudrate):
         date = None
         while True:
             line = ser.readline()
-            logging.debug('NMEA: %s' % line.strip())
-            # gps_logger(line.rstrip())
+            if nmea_logger is not None:
+                nmea_logger.debug('NMEA: %s' % line.strip())
+            else:
+                logging.debug('NMEA: %s' % line.strip())
             if line.startswith("$GPRMC"):
                 msg = pynmea2.parse(line)
                 date = msg.datestamp
@@ -105,7 +110,8 @@ def get_info(uart, baudrate):
                 return msg, date
 
 
-def update_gps_info(timestamp, altitude, latitude, longitude, logger):
+def update_gps_info(timestamp, altitude, latitude, longitude,
+                    gps_logger, nmea_logger):
     """This function continuously updates the shared memory variables
     for GPS data and is meant to run as a child process.
     It also writes a GPS position log file.
@@ -114,11 +120,13 @@ def update_gps_info(timestamp, altitude, latitude, longitude, logger):
 
     Args:
         timestamp, altitude, latitude, longitude - shared memory variables
-        logger: A logger object for the GPS data. Disabled if None.
+        gps_logger: A logger object for the GPS data. Disabled if None.
+        nmea_logger: A logger object for the raw NMEA data. Disabled if None.
     """
     while continue_gps.value:
         gps_data, datestamp = get_info(config.GPS_SERIAL_PORT,
-                                       config.GPS_SERIAL_PORT_BAUDRATE)
+                                       config.GPS_SERIAL_PORT_BAUDRATE,
+                                       nmea_logger=nmea_logger)
         try:
             if datestamp is not None:
                 timestamp.value = datestamp.strftime("%Y-%m-%dT") \
@@ -147,6 +155,7 @@ def update_gps_info(timestamp, altitude, latitude, longitude, logger):
             logging.exception(msg)
         try:
             latitude.value = float(gps_data.latitude)
+            latitude_direction.value = gps_data.lat_dir
             latitude_outdated.value = 0
         except (TypeError, ValueError):
             latitude_outdated.value = 1
@@ -156,6 +165,7 @@ def update_gps_info(timestamp, altitude, latitude, longitude, logger):
             logging.exception(msg)
         try:
             longitude.value = float(gps_data.longitude)
+            longitude_direction.value = gps_data.lon_dir
             longitude_outdated.value = 0
         except (TypeError, ValueError):
             longitude_outdated.value = 1
@@ -163,8 +173,8 @@ def update_gps_info(timestamp, altitude, latitude, longitude, logger):
         except Exception as msg:
             longitude_outdated.value = 1
             logging.exception(msg)
-        if logger is not None:
-            logger.info('%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' %
+        if gps_logger is not None:
+            gps_logger.info('%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' %
                         (datetime.datetime.utcnow().isoformat(),
                          latitude.value,
                          latitude_direction.value,
@@ -182,10 +192,19 @@ def update_gps_info(timestamp, altitude, latitude, longitude, logger):
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     utility.check_and_initialize_USB()
-    gps_handler = logging.FileHandler(config.USB_DIR + 'gps.csv')
+    gps_handler = logging.FileHandler(config.USB_DIR + config.DATA_DIR +
+                                      'gps.csv')
     gps_logger = logging.getLogger('gps')
     gps_logger.setLevel(logging.DEBUG)
     gps_logger.addHandler(gps_handler)
+    gps_logger.propagate = False
+    nmea_handler = logging.FileHandler(config.USB_DIR + config.DATA_DIR +
+                                       'nmea.csv')
+    nmea_logger = logging.getLogger('nmea')
+    nmea_logger.setLevel(logging.DEBUG)
+    nmea_logger.addHandler(nmea_handler)
+    nmea_logger.propagate = False
+
     uart = config.GPS_SERIAL_PORT
     baudrate = config.GPS_SERIAL_PORT_BAUDRATE
     logging.info('GPS found at %s with %i baud' % (uart, baudrate))
@@ -196,7 +215,7 @@ if __name__ == '__main__':
     # Initialize GPS subprocess or thread
     p = mp.Process(target=update_gps_info,
                    args=(timestamp, altitude, latitude, longitude,
-                         gps_logger))
+                         gps_logger, nmea_logger))
     p.start()
     # Wait for valid GPS position and time, and sync time
     logging.info('Waiting for valid initial GPS position.')

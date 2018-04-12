@@ -31,7 +31,7 @@ def check_and_initialize_USB():
     """Checks and initializes the USB media."""
     # Test if USB stick is writeable
     try:
-        filehandle = open(config.USB_DIR + 'test.txt', 'w')
+        filehandle = open(config.USB_DIR + '/test.txt', 'w')
         filehandle.close()
     except IOError:
         # This will only be shown on the screen
@@ -39,7 +39,7 @@ def check_and_initialize_USB():
         logging.info('Trying to mount USB media.')
         try:
             os.system("sudo ./shell/detect_and_mount_usb.sh")
-            filehandle = open(config.USB_DIR + 'test.txt', 'w')
+            filehandle = open(config.USB_DIR + '/test.txt', 'w')
             filehandle.close()
         except Exception as msg_time:
             logging.critical('FATAL: Could not mount USB media.')

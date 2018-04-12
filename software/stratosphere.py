@@ -21,15 +21,36 @@ from shared_memory import *
 
 
 def main():
-    """Main probe functionality"""
+    """Main probe functionality."""
     logging.info("Stratosphere 2018 system started.")
-    # Set up data and GPS loggers
-    # We use a logger for the data capture because it is most resilient
-    datalogger = logging.getLogger('data')
-# TODO set file name
-    gps_logger = logging.getLogger('gps')  # same for raw NMEA data
-# TODO set file name, maybe move to gps_info
-    position_logger = logging.getLogger('dof')  # same for 9 DOF data
+    # Set up data, GPS, NMEA and motion/DoF loggers
+    gps_handler = logging.FileHandler(config.USB_DIR + config.DATA_DIR +
+                                      'gps.csv')
+    gps_logger = logging.getLogger('gps')
+    gps_logger.setLevel(logging.DEBUG)
+    gps_logger.addHandler(gps_handler)
+    gps_logger.propagate = False
+
+    nmea_handler = logging.FileHandler(config.USB_DIR + config.DATA_DIR +
+                                       'nmea.csv')
+    nmea_logger = logging.getLogger('nmea')
+    nmea_logger.setLevel(logging.DEBUG)
+    nmea_logger.addHandler(nmea_handler)
+    nmea_logger.propagate = False
+
+    data_handler = logging.FileHandler(config.USB_DIR + config.DATA_DIR +
+                                       'data.csv')
+    data_logger = logging.getLogger('gps')
+    data_logger.setLevel(logging.DEBUG)
+    data_logger.addHandler(data_handler)
+    data_logger.propagate = False
+
+    motion_handler = logging.FileHandler(config.USB_DIR + config.DATA_DIR +
+                                         'motion.csv')
+    motion_logger = logging.getLogger('motion')
+    motion_logger.setLevel(logging.DEBUG)
+    motion_logger.addHandler(motion_handler)
+    motion_logger.propagate = False
     # Set up GPIO and test LEDs
     GPIO.setmode(GPIO.BOARD)
     # All LEDs
@@ -52,7 +73,8 @@ def main():
         GPIO.output(led, False)
     # Initialize GPS subprocess or thread
     p = mp.Process(target=gps_info.update_gps_info,
-                   args=(timestamp, altitude, latitude, longitude))
+                   args=(timestamp, altitude, latitude, longitude,
+                         gps_logger, nmea_logger))
     p.start()
     # Wait for valid GPS position and time, and sync time
     logging.info('Waiting for valid initial GPS position.')
@@ -167,8 +189,10 @@ humidity_external = mp.Value("d", 0.0)
 
 
 if __name__ == "__main__":
+    # Check that USB media is available, writeable, and with sufficient
+    # capacity
     utility.check_and_initialize_USB()
-    # Configure logging
+    # Configure main logging
     FORMAT = '%(asctime)-15s %(levelname)10s:  %(message)s'
     logging.basicConfig(filename=os.path.join(
         config.USB_DIR, "main.log"), level=logging.DEBUG, format=FORMAT)
@@ -177,3 +201,4 @@ if __name__ == "__main__":
     std_logger.setFormatter(logging.Formatter(FORMAT))
     logging.getLogger().addHandler(std_logger)
     main()
+

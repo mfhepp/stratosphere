@@ -3,8 +3,6 @@
 
 # config.py
 # Configuration settings for the probe and its sensors
-import logging
-import os
 import RPi.GPIO as GPIO
 
 # Mission configuration
@@ -17,7 +15,7 @@ APRS_COMMENT = 'UniBwM Stratosphere 2018'
 AUDIO_BEACON = "files/bake-test-dl0ubw-8k.wav"
 
 # Directories and filenames
-USB_DIR = "/media/usbstick/"  # Mounting point of the external USB stick
+USB_DIR = "/media/usbstick"  # Mounting point of the external USB stick
 LOGFILE_DIR = "/logfiles/"
 VIDEO_DIR = "/videos/"
 IMAGE_DIR = "/still_images/"
@@ -25,38 +23,14 @@ SSTV_DIR = "/sstv/"
 DATA_DIR = "/data/"
 DISK_SPACE_MINIMUM = 16 * 1024 * 1024 * 1024  # 16 GB
 
-
-def check_filesystem():
-    """Makes sure that the USB stick is available, writable, has
-    sufficient disk space, and that the directories exist.
-    If the directories do not exist, they will be created."""
-
-
-
-# Test of USB stick is available, if not, try to mount
-# Test if USB stick has at least 30 GB free capacity
-
-# Configure logging
-FORMAT = '%(asctime)-15s %(levelname)10s:  %(message)s'
-# Log to a file
-logging.basicConfig(filename=os.path.join(USB_DIR, "main.log"),
-    level=logging.DEBUG, format=FORMAT)
-# We use a logger for the data capture because it is most resilient
-datalogger = logging.getLogger('data')
-gps_logger = logging.getLogger('gps')  # same for raw NMEA data
-
-# Log to standard output as well
-std_logger = logging.StreamHandler()
-std_logger.setFormatter(logging.Formatter(FORMAT))
-logging.getLogger().addHandler(std_logger)
-
 # GPS
 GPS_SERIAL_PORT = "/dev/ttyUSB0"  # just an example
 GPS_SERIAL_PORT_BAUDRATE = 9600  # just an example
-GPS_POLLTIME = 2 # in seconds
-# GPS_ALTITUDE_MODE_CEILING = 10000  # Not used
+GPS_POLLTIME = 2  # in seconds
+# GPS_ALTITUDE_MODE_CEILING = 10000
 # Altitude at which GPS will be switched to Airborne-6 mode
 # with <1g Acceleration; TBD
+# Not used, we turn this mode on right from the beginning.
 
 # 3-wire sensors
 SENSOR_ID_INTERNAL_TEMP = "00000771bf4e"
