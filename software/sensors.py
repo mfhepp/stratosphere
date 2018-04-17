@@ -80,7 +80,7 @@ def get_motion_data():
     #     https://github.com/hoihu/projects/blob/master/raspi-hat/fusion.py
     return {}
 
-def get_humidity():
+def get_humidity(sensor=None):
     """Returns data from the HTU21D humidity sensors inside and outside the probe
     in percent (1 = 100 %, 0.1 = 10 %)"""
     # see http://www.exp-tech.de/sparkfun-feuchtesensor-breakout-htu21d
@@ -90,7 +90,8 @@ def get_humidity():
     # mind temperature compensation, heating, etc.
     # see also https://github.com/dalexgray/RaspberryPI_HTU21DF
     # SENSOR_ID_HUMIDITY
-    return 0.0, 0.0
+    return 0.0
+
 
 def get_adc(channel, gain=0):
     """Returns voltage at ADC, utility method for other methods"""

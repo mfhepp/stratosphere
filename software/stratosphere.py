@@ -5,13 +5,10 @@
 
 import logging
 import os
-import sys
 import time
+import datetime
 import multiprocessing as mp
-from random import randint
-import serial
 import RPi.GPIO as GPIO
-from smbus import SMBus
 import config
 import utility
 import sensors
@@ -20,7 +17,43 @@ import camera
 from shared_memory import *
 
 
+def camera_handler():
+    """tbd"""
+    # record video
+    # take still image
+    # update sstv image path
+    # monitor freespace and update / shutdown
+    # continue until graceful shutdown
+    # cleanup
+    pass
+
+
+def sensors_handler():
+    # update all shared memory variables from sensors (except 9 DOF)
+    # including battery_discharge_capacity = I * V
+    while sensors_active:
+        start_time = time.time()
+        internal_temp.value = sensors.get_temperature_DS18B20(sensor_id='')
+        external_temp.value = sensors.get_temperature_DS18B20(sensor_id='')
+        external_temp_ADC.value = sensors.get_temperature_external()
+        humidity_internal.value = sensors.get_humidity(
+            sensor=SENSOR_ID_HUMIDITY_INT)
+        humidity_external.value = sensors.get_humidity(
+            sensor=SENSOR_ID_HUMIDITY_EXT)
+        atmospheric_pressure.value = sensors.get_pressure()
+        battery_voltage, discharge_current, \
+            battery_temperature = sensors.get_battery_status()
+        battery_voltage.value = battery_voltage
+        discharge_current.value = discharge_current
+        battery_temp.value = battery_temperature
+        cpu_temp.value = sensors.get_temperature_cpu()
+        delay = 1.0 / config.SENSOR_POLL_RATE - (time.time() - start_time)
+        if delay > 0:
+            time.sleep(delay)
+
+
 def main():
+    global sensors_active, camera_active
     """Main probe functionality."""
     logging.info("Stratosphere 2018 system started.")
     # Set up data, GPS, NMEA and motion/DoF loggers
@@ -114,6 +147,7 @@ def main():
         logging.info('Top camera recording started.')
     else:
         logging.error('Problem: Top camera recording not running.')
+    # add wait for ack
     cam_bottom = camera.ExternalCamera(
         config.CAM2_PWR,
         config.CAM2_REC,
@@ -123,69 +157,100 @@ def main():
         logging.info('Bottom camera recording started.')
     else:
         logging.error('Problem: Bottom camera recording not running.')
+    # Add wait for ack
+    # tbd
     # Set up sensors and self-test sensors
+    # a) self-test sensors
+    # tbd
+    # b) start thread
+    sensors_active = True
+    sensors_thread = mp.Process(target=sensors_handler)
+    sensors_thread.start()
     # Set up and start internal camera thread or subprocess
+    camera_active = True
+    camera_thread = mp.Process(target=camera_handler)
+    camera_thread.start()
     # Set up 9 DOF thread
     # Set up shutdown switch thread or subprocess
+    aprs_counter = config.APRS_RATE
+    aprs_meta_data_counter = config.APRS_META_DATA_RATE
+    sstv_counter = config.SSTV_RATE
     while True:
         start_time = time.time()
-        # write data with gps to data logger
-        # timestamp, lat, latD, long, longD, temp_int, temp_ext, temp_adc,
-        # humidity_int, humidity_ext, pressure, temp_cpu, batt_voltage,
-        # batt_current, batt_temp
-        data_message = '%s'
-"""
-altitude = mp.Value("d", 0.0)
-altitude_outdated = mp.Value("i", 1)
-latitude = mp.Value("d", 0.0)
-latitude_direction = mp.Value("c", "N")
-latitude_outdated = mp.Value("i", 1)
-longitude = mp.Value("d", 0.0)
-longitude_direction = mp.Value("c", "E")
-longitude_outdated = mp.Value("i", 1)
-continue_gps = mp.Value("i", 1)
-next_threshold = -1
-internal_temp = mp.Value("d", 0.0)
-external_temp = mp.Value("d", 0.0)
-external_temp_ADC = mp.Value("d", 0.0)
-cpu_temp = mp.Value("d", 0.0)
-battery_voltage = mp.Value("d", 0.0)
-discharge_current = mp.Value("d", 0.0)
-battery_temp = mp.Value("d", 0.0)
-atmospheric_pressure = mp.Value("d", 0.0)
-humidity_internal = mp.Value("d", 0.0)
-humidity_external = mp.Value("d", 0.0)
-"""
+        # Write data with gps to data logger
+        # timestamp, lat, latD, long, longD, altitude,
+        # temp_int, temp_ext, temp_adc,
+        # humidity_int, humidity_ext, pressure, temp_cpu,
+        # batt_voltage, batt_current, batt_temp,
+        # cpu_temp
+        data_message = '%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,\
+         %s, %s, %s, %s, %s' % (
+            datetime.datetime.utcnow().isoformat(),
+            latitude.value,
+            latitude_direction.value,
+            longitude.value,
+            longitude_direction.value,
+            altitude.value,
+            internal_temp.value,
+            external_temp.value,
+            external_temp_ADC.value,
+            humidity_internal.value,
+            humidity_external.value,
+            atmospheric_pressure.value,
+            battery_voltage.value,
+            discharge_current.value,
+            battery_temp.value,
+            cpu_temp.value
+        )
         datalogger.info(data_message)
         # Delay tx by random number of 0..10 secs in order to minimize
         # collisions on the APRS frequency
         time.sleep(random.random * 10)
-        # send APRS meta-data (only every x times)
-        telemetry_definition = aprs.generate_aprs_telemetry_definition()
-        status = aprs.send_aprs(telemetry_definition)
-        # send APRS position and core data (only every x times)
-        aprs_position_msg = generate_aprs_position()
-        status = aprs.send_aprs(aprs_position_msg)
-        # send APRS weather data (only every x times)
-        aprs_weather_msg = generate_aprs_weather()
-        status = aprs.send_aprs(aprs_weather_msg)
-        # wait for remaining time
-        delay = APRS_DELAY - (time.time() - start_time)
-        if delay > 0:
-            time.sleep(delay)
-        # send SSTV (only every x times)
-        status = send_sstv(
-            transceiver,
-            config.SSTV_FREQUENCY,
-            last_sstv_image,
-            protocol=config.SSTV_MODE)
+        if aprs_meta_data_counter <= 0:
+            # send APRS meta-data (only every n-th cycle)
+            telemetry_definition = aprs.generate_aprs_telemetry_definition()
+            aprs.send_aprs(telemetry_definition, full_power=True)
+            aprs_meta_data_counter = config.APRS_META_DATA_RATE
+        else:
+            aprs_meta_data_counter -= 1
+        if aprs_counter <= 0:
+            # send APRS position and core data (only every n-th cycle)
+            aprs_position_msg = generate_aprs_position()
+            aprs.send_aprs(aprs_position_msg, full_power=True)
+            # send APRS weather data
+            aprs_weather_msg = generate_aprs_weather()
+            aprs.send_aprs(aprs_weather_msg, full_power=True)
+            aprs_counter = config.APRS_RATE
+        else:
+            aprs_counter -= 1
+        if sstv_counter <= 0:
+            # Send audio beacon
+            transceiver.transmit_audio_file(
+                config.SSTV_FREQUENCY,
+                [config.AUDIO_BEACON], full_power=False)
+            time.sleep(1)
+            fn = last_sstv_image.value
+            if os.path.exists(fn):
+                fn_sstv = resize_image(fn, protocol=config.SSTV_MODE)
+                send_sstv(transceiver, config.SSTV_FREQUENCY,
+                          fn_sstv, protocol=config.SSTV_MODE)
         # check battery status and shutdown / reduce operation
-        # -> also check SUV status
+        # monitor shutdown switch
+        # monitor battery voltage
+        # reduce / turn off functionality if needed
+        # Also check SUV status
         # check free disk space and shutdown processes if needed
-        # wait for remaining time
-        delay = SSTV_DELAY - (time.time() - start_time)
+        # Wait for remaining time of the cycle
+        delay = config.CYCLE_DURATION - (time.time() - start_time)
         if delay > 0:
             time.sleep(delay)
+        else:
+            logging.info('Warning: Transmissions exceed duration of cycle.')
+    # cleanup
+    # turn off transmitter
+    # gpio
+    # all threads
+    # shutdown
 
 
 if __name__ == "__main__":

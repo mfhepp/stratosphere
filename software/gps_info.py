@@ -147,6 +147,8 @@ def update_gps_info(timestamp, altitude, latitude, longitude,
         try:
             altitude.value = gps_data.altitude
             altitude_outdated.value = 0
+            if altitude.value > altitude_max.value:
+                altitude_max.value = altitude.value
         except (TypeError, ValueError):
             altitude_outdated.value = 1
             logging.warning('GPS altitude data invalid.')
@@ -175,16 +177,16 @@ def update_gps_info(timestamp, altitude, latitude, longitude,
             logging.exception(msg)
         if gps_logger is not None:
             gps_logger.info('%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' %
-                        (datetime.datetime.utcnow().isoformat(),
-                         latitude.value,
-                         latitude_direction.value,
-                         longitude.value,
-                         longitude_direction.value,
-                         altitude.value,
-                         timestamp.value,
-                         latitude_outdated.value,
-                         longitude_outdated.value,
-                         altitude_outdated.value))
+                            (datetime.datetime.utcnow().isoformat(),
+                             latitude.value,
+                             latitude_direction.value,
+                             longitude.value,
+                             longitude_direction.value,
+                             altitude.value,
+                             timestamp.value,
+                             latitude_outdated.value,
+                             longitude_outdated.value,
+                             altitude_outdated.value))
         time.sleep(config.GPS_POLLTIME)
     return
 

@@ -7,11 +7,13 @@
 # $ git clone https://github.com/hatsunearu/pisstvpp
 # $ sudo apt-get install build-essential libgd-dev libmagic-dev
 # $ make make pisstvpp  (in the directory where PiSSTV resides in)
+# $
 
 import logging
 import os
 import subprocess
 import config
+import PIL
 
 
 def convert_image_to_sstv_wav(image_path, protocol='r36', rate=22050):
@@ -36,8 +38,6 @@ def convert_image_to_sstv_wav(image_path, protocol='r36', rate=22050):
     Returns:
         None if a problem occured or a string with the path of the WAV
         file containing the result."""
-
-# TODO: Resize image to Robots 36 or other format
     if os.path.isfile(image_path):
         command = "./pisstvpp/pisstvpp -p %s -r%s %s" % \
                   (protocol, rate, image_path)
@@ -49,6 +49,43 @@ def convert_image_to_sstv_wav(image_path, protocol='r36', rate=22050):
             return False
     else:
         return None
+
+
+def resize_image(image_path, protocol='r36'):
+    """Resizes and crops the image so that it matches the required size
+    for the given SSTV protocol. The new image will be written to a new file.
+
+    Args:
+        image_path (str): The path of an image in PNG or JPG format.
+
+        protocol (str): The SSTV format in the pisstvpp form, like so:
+            Martin 1: m1
+            Martin 2: m2
+            Scottie 1: s1
+            Scottie 2: s2
+            Scottie DX: sdx
+            Robot 36: r36
+
+    Returns:
+            filename (str): The path and filename of the resized image.
+    """
+    if protocol not in ['m1', 'm2', 's1', 's2', 'sdx', 'r36']:
+        raise ValueError('Invalid SSTV protocol string.')
+    # All modes except Robot 36 can only accept 320x256 sized images
+    # without cropping, whereas Robot 36 can only accept 320x240 sized
+    # images without cropping.
+    if protocol == 'r36':
+        width, height = (320, 240)
+    else:
+        width, height = (320, 256)
+    image = PIL.Image.open(image_path)
+    sstv_image = PIL.ImageOps.fit(image, (width, height))
+    fn, extension = os.path.splitext(image_path)
+    output_path = os.path.join(fn + '_sstv' + extension)
+    sstv_image.save(output_path, 'JPEG')
+    logging.info('Wrote %ix%i SSTV image to %s.' %
+                 (width, height, output_path))
+    return output_path
 
 
 def send_sstv(transceiver, frequency, image_path,
@@ -83,6 +120,8 @@ def send_sstv(transceiver, frequency, image_path,
 
 if __name__ == "__main__":
     import dra818
+    import camera
+
     logging.basicConfig(level=logging.DEBUG)
     transceiver = dra818.DRA818(
         uart=config.SERIAL_PORT_TRANSCEIVER,
@@ -107,6 +146,17 @@ if __name__ == "__main__":
             transceiver,
             config.SSTV_FREQUENCY,
             'files/sstv-testbild-small.png',
+            protocol=config.SSTV_MODE)
+        print 'Status: %s' % status
+        raw_input('Press ENTER to take still image.')
+        print 'Taking still image.'
+        fn = camera.InternalCamera.take_snapshot()
+        fn_sstv = resize_image(fn, protocol=config.SSTV_MODE)
+        print 'Starting SSTV transmission.'
+        status = send_sstv(
+            transceiver,
+            config.SSTV_FREQUENCY,
+            fn_sstv,
             protocol=config.SSTV_MODE)
         print 'Status: %s' % status
     except KeyboardInterrupt:

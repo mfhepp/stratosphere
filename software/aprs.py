@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # aprs.py
-# routines for initializing and controlling the DRA818V transceiver module
-# see also https://github.com/darksidelemm/dra818/blob/master/DRA818/DRA818.cpp
+# routines for creating and transmitting APRS messages
 # APRS Protocol Reference
 # See https://github.com/casebeer/afsk
 # and
@@ -110,14 +109,19 @@ def generate_aprs_telemetry_report():
 
 def generate_aprs_position():
     '''Generate APRS string'''
-    # increment counter and  make sure that it and all of the telemetry values never get values higher than 8280
+    # increment counter and  make sure that it and all of the telemetry
+    # values never get values higher than 8280
 # TIME = UTC!!!
     utc = datetime.utcnow()
     timestamp_dhm = "%d%02d%02d%z" % (utc.day, utc.hour, utc.minute)
-    timestamp_hms = "%d%02d%02d%h" % (utc.hour, utc.minute, utc.second)  # This format may not be used in Status Reports.
+    timestamp_hms = "%d%02d%02d%h" % (utc.hour, utc.minute, utc.second)
+    # This format may not be used in Status Reports.
     # all data comes from the shared memory variables
-    latitude = "%04.2f%s" % (latitude.value, latitude_direction.value)
-    longitude = "%05.2f%s" % (longitude.value, longitude_direction.value)
+    if config.GPS_OBFUSCATION and altitude_max.value > (altitude.value + 1000):
+        pass
+    else:
+        latitude = "%04.2f%s" % (latitude.value, latitude_direction.value)
+        longitude = "%05.2f%s" % (longitude.value, longitude_direction.value)
     altitude = "/A=%6i" % altitude.value*3.28  # in feet
 
     # Battery voltage, discharge current, battery temperature
@@ -137,6 +141,7 @@ def generate_aprs_position():
 
 def generate_aprs_weather():
     '''Generate APRS weather message'''
-    # For humidity, pressure and outside temperature, also the weather format of APRS could be used (tbc)
+    # For humidity, pressure and outside temperature, also the weather
+    # format of APRS could be used (tbc)
     info_field = ""
     return info_field
