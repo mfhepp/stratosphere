@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # sensors.py
+# $ sudo apt-get install python-w1thermsensor
 # Library for accessing the sensors of our probe
 # tbd: super-robust error handling
 # i2c docs e.g. from
@@ -139,17 +140,14 @@ def get_battery_status():
     voltage_exponent = 1.0
     battery_voltage = voltage_offset + voltage_coefficient *\
         raw_voltage ** voltage_exponent
-
     raw_current = get_adc(config.SENSOR_ADC_CHANNEL_CURRENT, gain=0.0)
     current_offset = 0.0
     current_coefficient = 1.0
     current_exponent = 1.0
     discharge_current = current_offset + current_coefficient *\
         raw_current ** current_exponent
-
     battery_temperature = get_temperature_DS18B20(
         sensor_id=config.SENSOR_ID_BATTERY_TEMP)
-
     return (battery_voltage, discharge_current, battery_temperature)
 
 
@@ -175,17 +173,13 @@ if __name__ == '__main__':
     logging.info('Battery status: U=%fV, I=%fA, T=%f°C' % (u, i, t))
     a, b = get_motion_sensor_status()
     logging.info('Motion sensor status: %s - %s' % (a, b))
+    raw_input('Press ENTER to start motion sensor test.')
     while True:
         try:
-            raw_input('Press ENTER to start motion sensor test.')
-            logging.info('Motion sensor data: %s' % get_motion_data())
+            logging.info('Motion sensor data: %s [CTRL-C for exit]' %
+                         get_motion_data())
             time.sleep(0.5)
         except KeyboardInterrupt:
             print 'CTRL-C detected.'
             break
-
-
-
-
-
 
