@@ -413,9 +413,9 @@ if __name__ == '__main__':
         try:
             raw_input('Press ENTER to start transmission.')
             print 'Now sending.'
-            list_of_files = ['files/beacon-english.wav',
-                             'files/aprs-1200hz-2200hz-6db.wav',
-                             'files/selftest-ok.wav']
+            list_of_files = [config.AUDIO_BEACON,
+                             config.AUDIO_APRS_TEST_SIGNAL,
+                             config.AUDIO_SELFTEST_OK]
             transceiver.transmit_audio_file(transceiver.tx_frequency,
                                             list_of_files)
             time.sleep(0.5)

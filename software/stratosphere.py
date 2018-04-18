@@ -111,7 +111,7 @@ def main():
     p.start()
     # Wait for valid GPS position and time, and sync time
     logging.info('Waiting for valid initial GPS position.')
-    while longitude_outdated > 0 or latitude_outdated > 0:
+    while longitude_outdated.value > 0 or latitude_outdated.value > 0:
         time.sleep(1)
     # Set up transmitter
     logging.info('Setting up transceiver via %s.' %

@@ -14,6 +14,7 @@ import os
 import subprocess
 import config
 import PIL
+from PIL import Image, ImageOps, ImageDraw, ImageFont
 
 
 def convert_image_to_sstv_wav(image_path, protocol='r36', rate=22050):
@@ -78,8 +79,9 @@ def resize_image(image_path, protocol='r36'):
         width, height = (320, 240)
     else:
         width, height = (320, 256)
-    image = PIL.Image.open(image_path)
-    sstv_image = PIL.ImageOps.fit(image, (width, height))
+    image = Image.open(open(image_path, 'rb'))
+    # image = PIL.Image.open(image_path)
+    sstv_image = ImageOps.fit(image, (width, height))
     fn, extension = os.path.splitext(image_path)
     output_path = os.path.join(fn + '_sstv' + extension)
     sstv_image.save(output_path, 'JPEG')
@@ -150,8 +152,16 @@ if __name__ == "__main__":
         print 'Status: %s' % status
         raw_input('Press ENTER to take still image.')
         print 'Taking still image.'
-        fn = camera.InternalCamera.take_snapshot()
+        fn = camera.InternalCamera.take_snapshot(annotate=False)
         fn_sstv = resize_image(fn, protocol=config.SSTV_MODE)
+        print fn_sstv
+        image = Image.open(open(fn_sstv, 'rb'))
+        text_field = ImageDraw.Draw(image)
+        font = ImageFont.truetype(
+            '/usr/share/fonts/truetype/freefont/FreeMono.ttf', 18)
+        print config.CALLSIGN
+        text_field.text((10, 10), config.MISSION_TEXT, font=font)
+        image.save(fn_sstv)
         print 'Starting SSTV transmission.'
         status = send_sstv(
             transceiver,

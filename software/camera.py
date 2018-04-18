@@ -9,22 +9,24 @@
 import logging
 import os
 import time
+import datetime
 import RPi.GPIO as GPIO
 import multiprocessing as mp
 import picamera
 from shared_memory import *
-from config import *
+import config
 import utility
+import gps_info
 
 
 def _attach_questionmark(value, yes):
     if yes:
-        return str(value) + "?"
+        return '%s?' % str(value)
     else:
         return str(value)
 
 
-class External_Camera(object):
+class ExternalCamera(object):
     """Control handler for external camera modules based on
     https://bitbucket.org/alexstolz/strato_med."""
 
@@ -71,7 +73,7 @@ class External_Camera(object):
         GPIO.setup(camera_record_start_stop_pin, GPIO.OUT,
                    initial=GPIO.HIGH)
         GPIO.setup(camera_recording_status_pin, GPIO.IN,
-                   pull_up_down=GPIO.PUD_DOWN)
+                   pull_up_down=GPIO.PUD_UP)
         logging.info('Camera unit attached to pins (%i, %i, %i).' %
                      (camera_power_on_off_pin,
                       camera_record_start_stop_pin,
@@ -82,9 +84,10 @@ class External_Camera(object):
 
         Note: Calling this function toggles between on and off.
         You cannot check the actual status."""
+        GPIO.setmode(GPIO.BOARD)
         logging.info('Camera: On/off signal sent to %s (low)' % self.name)
         GPIO.output(self.camera_power_on_off_pin, GPIO.LOW)
-        time.sleep(.300)
+        time.sleep(0.150)
         GPIO.output(self.camera_power_on_off_pin, GPIO.HIGH)
         logging.info('Camera: On/off signal sent to %s (high)' % self.name)
         return
@@ -101,10 +104,11 @@ class External_Camera(object):
         if self.recording_status:
             return False
         else:
+            GPIO.setmode(GPIO.BOARD)
             logging.info('Camera: Recording signal sent to %s (low)' %
                          self.name)
             GPIO.output(self.camera_record_start_stop_pin, GPIO.LOW)
-            time.sleep(1.500)
+            time.sleep(1.200)
             GPIO.output(self.camera_record_start_stop_pin, GPIO.HIGH)
             logging.info('Camera: Recording signal sent to %s (high)' %
                          self.name)
@@ -123,10 +127,11 @@ class External_Camera(object):
         if not self.recording_status:
             return False
         else:
+            GPIO.setmode(GPIO.BOARD)
             logging.info('Camera: Recording stop signal sent to %s (low)' %
                          self.name)
             GPIO.output(self.camera_record_start_stop_pin, GPIO.LOW)
-            time.sleep(1.500)
+            time.sleep(1.200)
             GPIO.output(self.camera_record_start_stop_pin, GPIO.HIGH)
             logging.info('Camera: Recording stop signal sent to %s (high)' %
                          self.name)
@@ -140,6 +145,7 @@ class External_Camera(object):
             True: Recording ongoing
             False: Not currently recording
         """
+        GPIO.setmode(GPIO.BOARD)
         return GPIO.input(self.camera_recording_status_pin)
 
 
@@ -147,9 +153,9 @@ class InternalCamera(object):
     """Represents the internal RBPi camera.
 
     Based on https://bitbucket.org/alexstolz/strato_media."""
-
+    @staticmethod
     def video_recording(duration=10, video_settings=(1920, 1080, 30),
-                        anotate=True, rotation=0, preview=False):
+                        annotate=True, rotation=0, preview=False):
         """Starts a video recording with the given settings.
         The h264-encoded result will be written to the path set in
         config.USB_DIR/config.VIDEO_DIR. The LED attached to
@@ -178,35 +184,41 @@ class InternalCamera(object):
             camera.framerate = video_settings[2]
             camera.rotation = rotation
             if preview:
-                camera.start_preview(alpha=128)  # alpha sets the transparency
+                camera.start_preview(alpha=255)  # alpha sets the transparency
             fn = os.path.join(config.USB_DIR, config.VIDEO_DIR, "video_" +
                               t + ".h264")
-            camera.start_recording(fn)
             logging.info('Writing to %s.' % fn)
-            if annotate:
-                text_size = int(float(config.TEXT_SIZE) / 1080 *
-                                video_settings[1])
-                if text_size > 6 and text_size < 160:
-                    camera.annotate_text_size = text_size
-                else:
-                    camera.annotate_text_size = config.TEXT_SIZE
-                camera.annotate_text = VIDEO_TEXT % {
-                    "time": timestamp.value,
-                    "alt": _attach_questionmark(altitude.value,
-                                                altitude_outdated.value),
-                    "lat": _attach_questionmark(latitude.value,
-                                                latitude_outdated.value),
-                    "lon": _attach_questionmark(longitude.value,
-                                                longitude_outdated.value)}
+            camera.start_recording(fn)
             cam_led_process = mp.Process(target=utility.blink,
                                          args=(config.MAIN_CAM_STATUS_LED, 4))
             cam_led_process.start()
-            camera.wait_recording(duration)
+            start_time = time.time()
+            while time.time() < start_time + duration:
+                if annotate:
+                    text_size = int(float(config.TEXT_SIZE) / 1080 *
+                                    video_settings[1])
+                    if text_size > 6 and text_size < 160:
+                        camera.annotate_text_size = text_size
+                    else:
+                        camera.annotate_text_size = config.TEXT_SIZE
+                    camera.annotate_text = config.VIDEO_TEXT % {
+                        "time": datetime.datetime.utcnow().isoformat(),
+                        "alt": _attach_questionmark('%5.1f' % altitude.value,
+                                                    altitude_outdated.value),
+                        "lat": _attach_questionmark('%2.6f' % latitude.value,
+                                                    latitude_outdated.value),
+                        "lon": _attach_questionmark('%2.6f' % longitude.value,
+                                                    longitude_outdated.value)}
+                camera.wait_recording(0.1)
             camera.stop_recording()
             cam_led_process.terminate()
             cam_led_process.join()
+            GPIO.setmode(GPIO.BOARD)
+            GPIO.setup(config.MAIN_CAM_STATUS_LED, GPIO.OUT)
+            GPIO.output(config.MAIN_CAM_STATUS_LED, GPIO.LOW)
         return fn
 
+    @staticmethod
     def take_snapshot(image_resolution=(1920, 1080), annotate=True):
         """Takes a still image of the given resolution and writes it as
         a JPG image to config.USB_DIR/config.IMAGE_DIR/image_*.jpg.
@@ -244,50 +256,93 @@ class InternalCamera(object):
 
 
 if __name__ == "__main__":
-    logging.info('Testing camera modules.')
-    cam_top = camera.ExternalCamera(
-        config.CAM1_PWR,
-        config.CAM1_REC,
-        config.CAM1_STATUS)
-    status_ok = cam_top.start_recording()
-    if status_ok:
-        logging.info('Top camera recording started.')
-    else:
-        logging.error('Problem: Top camera recording already running.')
-    for i in range(60):
-        if cam_top.get_recording_status():
-            logging.info('Top camera recording acknowledgment received.')
-            break
-        logging.info('Waiting for top camera recording acknowledgment' +
-                     ' (%i).' % i)
+    logging.basicConfig(level=logging.INFO)
+    # Initialize GPS subprocess or thread
+    p = mp.Process(target=gps_info.update_gps_info,
+                   args=(timestamp, altitude, latitude, longitude,
+                         None, None))
+    p.start()
+    # Wait for valid GPS position and time, and sync time
+    logging.info('Waiting for valid initial GPS position.')
+    while longitude_outdated.value > 0 or latitude_outdated.value > 0:
         time.sleep(1)
-    else:
-        logging.error('Problem: Top camera recording could not be started.')
+    logging.info('Valid GPS position received.')
+    logging.info('Now testing camera modules.')
+    try:
+        """cam_top = ExternalCamera(
+            config.CAM1_PWR,
+            config.CAM1_REC,
+            config.CAM1_STATUS)
+        status_ok = cam_top.start_recording()
+        if status_ok:
+            logging.info('Top camera recording started.')
+        else:
+            logging.error('Problem: Top camera recording already running.')
+        for i in range(60):
+            if cam_top.get_recording_status():
+                logging.info('Top camera recording acknowledgment received.')
+                break
+            logging.info('Waiting for top camera recording acknowledgment' +
+                         ' (%i).' % i)
+            time.sleep(1)
+        else:
+            logging.error('Problem: Top camera recording did not start.')
 
-    cam_bottom = camera.ExternalCamera(
-        config.CAM2_PWR,
-        config.CAM2_REC,
-        config.CAM2_STATUS)
-    status_ok = cam_bottom.start_recording()
-    if status_ok:
-        logging.info('Bottom camera recording started.')
-    else:
-        logging.error('Problem: Bottom camera recording already running.')
-    for i in range(60):
-        if cam_bottom.get_recording_status():
-            logging.info('Bottom camera recording acknowledgment received.')
-            break
-        logging.info('Waiting for bottom camera recording acknowledgment' +
-                     ' (%i).' % i)
-        time.sleep(1)
-    else:
-        logging.error('Problem: Bottom camera recording could not be started.')
+        cam_bottom = ExternalCamera(
+            config.CAM2_PWR,
+            config.CAM2_REC,
+            config.CAM2_STATUS)
+        status_ok = cam_bottom.start_recording()
+        if status_ok:
+            logging.info('Bottom camera recording started.')
+        else:
+            logging.error('Problem: Bottom camera recording already running.')
+        for i in range(60):
+            if cam_bottom.get_recording_status():
+                logging.info(
+                    'Bottom camera recording acknowledgment received.')
+                break
+            logging.info('Waiting for bottom camera recording acknowledgment' +
+                         ' (%i).' % i)
+            time.sleep(1)
+        else:
+            logging.error('Problem: Bottom camera recording did not start.')
+"""
+        logging.info('Starting main camera recording, d = 10 sec.')
+        fn = InternalCamera.video_recording(duration=10, preview=True)
+        logging.info('Main camera recording saved to %s.' % fn)
+        logging.info('Main camera still image capture started.')
+        fn = InternalCamera.take_snapshot()
+        logging.info('Main camera still image saved to %s.' % fn)
+        logging.info('Turning off top camera.')
+        # cam_top.stop_recording()
+        """for i in range(60):
+            if not cam_top.get_recording_status():
+                logging.info('Top camera stop acknowledgment received.')
+                break
+            logging.info('Waiting for top camera stop acknowledgment' +
+                         ' (%i).' % i)
+            time.sleep(1)
+        else:
+            logging.error('Problem: Top camera recording did not stop.')
+        logging.info('Turning off bottom camera.')
+        cam_bottom.stop_recording()
+        for i in range(60):
+            if not cam_bottom.get_recording_status():
+                logging.info('Bottom camera stop acknowledgment received.')
+                break
+            logging.info('Waiting for bottom camera stop acknowledgment' +
+                         ' (%i).' % i)
+            time.sleep(1)
+        else:
+            logging.error('Problem: Bottom camera recording did not stop.')"""
+        logging.info('Testing camera modules completed.')
+    finally:
+        p.terminate()
+        p.join()
+        # cam_top.power_on_off()
+        # cam_top.power_on_off()
+        logging.info('Please wait 2 minutes before turning off power for safe camera unit power-down.')
+        logging.info('Bye.')
 
-    logging.info('Starting main camera recording, d = 10 sec.')
-    fn = InternalCamera.video_recording(duration=10, preview=True)
-    logging.info('Main camera recording saved to %s.' % fn)
-    logging.info('Main camera still image capture started.')
-    fn = InternalCamera.take_snapshot()
-    logging.info('Main camera still image saved to %s.' % fn)
-    print "Testing camera modules completed."
 

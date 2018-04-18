@@ -18,12 +18,17 @@ def blink(led_pin, frequency):
 
         frequency (int or float): The blink frequency in Hz.
     """
-    period = 1. / frequency
-    while True:
-        GPIO.output(led_pin, GPIO.HIGH)
-        time.sleep(period / 2)
+    try:
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(led_pin, GPIO.OUT)
+        period = 1. / frequency
+        while True:
+            GPIO.output(led_pin, GPIO.HIGH)
+            time.sleep(period / 2)
+            GPIO.output(led_pin, GPIO.LOW)
+            time.sleep(period / 2)
+    finally:
         GPIO.output(led_pin, GPIO.LOW)
-        time.sleep(period / 2)
     return
 
 

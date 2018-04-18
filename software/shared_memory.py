@@ -1,5 +1,6 @@
 # shared_memory.py
-# all variables in shared memory that need to be accessible to all modules of the application
+# All variables in shared memory that need to be accessible to all
+# modules of the application
 
 import multiprocessing as mp
 
@@ -36,6 +37,3 @@ motion_sensor_M_X = mp.Value("d", 0.0)
 motion_sensor_pitch = mp.Value("d", 0.0)
 motion_sensor_roll = mp.Value("d", 0.0)
 motion_sensor_heading = mp.Value("d", 0.0)
-
-
-

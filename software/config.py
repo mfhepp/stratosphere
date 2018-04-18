@@ -10,21 +10,21 @@ DEBUG = True
 POLL_FREQUENCY = 1  # Sensor poll frequency in Hz
 CALLSIGN = 'DL0UBW'  # insert your mission callsign
 APRS_SSID = CALLSIGN + '-11'
-MISSION_TEXT = 'High-Altitude Balloon Mission STRATOSPHERE 2018'
+MISSION_TEXT = 'High-Altitude Balloon \nMission STRATOSPHERE 2018\n' + CALLSIGN
 APRS_COMMENT = 'UniBwM Stratosphere 2018'
 IMAGE_TEXT = 'High-Altitude Balloon Mission DL0UBW, UniBwM \
 %(time)s\nalt=%(alt)s, lat=%(lat)s, lon=%(lon)s'
 VIDEO_TEXT = 'High-Altitude Balloon Mission DL0UBW, UniBwM \
-%(time)s\nalt=%(alt)s, lat=%(lat)s, lon=%(lon)s'
+%(time)s\nalt=%(alt)s m, lat=%(lat)s, lon=%(lon)s'
 COPYRIGHT_TEXT = 'Copyright (c) 2018 Universitaet der Bundeswehr Muenchen'
 
 # Directories and filenames
 USB_DIR = "/media/usbstick"  # Mounting point of the external USB stick
 DISK_SPACE_MINIMUM = 16 * 1024 * 1024 * 1024  # 16 GB
-LOGFILE_DIR = "/logfiles/"
-VIDEO_DIR = "/videos/"
-IMAGE_DIR = "/still_images/"
-DATA_DIR = "/data/"
+LOGFILE_DIR = "logfiles/"
+VIDEO_DIR = "videos/"
+IMAGE_DIR = "still_images/"
+DATA_DIR = "data/"
 AUDIO_BEACON = "files/beacon-english.wav"
 AUDIO_SELFTEST_START = 'files/selftest-start.wav'
 AUDIO_SELFTEST_OK = 'files/selftest-ok.wav'
@@ -34,7 +34,7 @@ AUDIO_APRS_TEST_SIGNAL = 'files/aprs-1200hz-2200hz-6db.wav'
 # GPS
 GPS_SERIAL_PORT = "/dev/ttyUSB0"  # just an example
 GPS_SERIAL_PORT_BAUDRATE = 9600  # just an example
-GPS_POLLTIME = 2  # in seconds
+GPS_POLLTIME = 0.1  # in seconds
 GPS_OBFUSCATION = False
 # GPS_ALTITUDE_MODE_CEILING = 10000
 # Altitude at which GPS will be switched to Airborne-6 mode
@@ -136,9 +136,12 @@ POWER_BUTTON_PIN = 37  # GPIO26
 MAIN_STATUS_LED_PIN = 40  # GPIO21
 SPARE_STATUS_LED_PIN = 24  # GPIO8
 MAIN_CAM_STATUS_LED = 26  # GPIO07
+
+
 CAM1_PWR = 11  # GPIO17
 CAM1_REC = 13  # GPIO13
 CAM1_STATUS = 12  # GPIO18
+
 CAM2_PWR = 15  # GPIO22
 CAM2_REC = 18  # GPIO14
 CAM2_STATUS = 16  # GPIO23
@@ -162,7 +165,7 @@ VIDEO_PARAMS = (1920, 1080, 30)  # initial video params
 IMAGE_PARAMS = (2592, 1944)  # initial image params
 RESOLUTIONS = (
     # next_threshold video_params image_params
-    (10000000, video_params, image_params),
+    (10000000, VIDEO_PARAMS, IMAGE_PARAMS),
     (2500000, (1440, 960, 24), (1920, 1080)),
     (500000, (1280, 720, 24), (1920, 1080)),
     (50000, (640, 480, 24), (1920, 1080)),
