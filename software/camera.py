@@ -184,7 +184,7 @@ class InternalCamera(object):
             camera.framerate = video_settings[2]
             camera.rotation = rotation
             if preview:
-                camera.start_preview(alpha=255)  # alpha sets the transparency
+                camera.start_preview(alpha=170)  # alpha sets the transparency
             fn = os.path.join(config.USB_DIR, config.VIDEO_DIR, "video_" +
                               t + ".h264")
             logging.info('Writing to %s.' % fn)
@@ -195,6 +195,7 @@ class InternalCamera(object):
             start_time = time.time()
             while time.time() < start_time + duration:
                 if annotate:
+                    camera.annotate_background = picamera.Color('black')
                     text_size = int(float(config.TEXT_SIZE) / 1080 *
                                     video_settings[1])
                     if text_size > 6 and text_size < 160:
