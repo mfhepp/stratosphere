@@ -102,12 +102,18 @@ def get_info(uart, baudrate, nmea_logger=None):
             if line.startswith("$GPRMC"):
                 msg = pynmea2.parse(line)
                 date = msg.datestamp
+                speed = msg.spd_over_grnd
+                course = msg.true_course
+                logging.debug(
+                    'GPS data from RMC: date=%s speed=%.2f course=%1.f' %
+                    (date, speed, course))
             elif line.startswith("$GPGGA"):
                 msg = pynmea2.parse(line)
-                logging.debug('GPS data: time=%s lat=%s long=%s alt=%s'
-                              % (msg.timestamp, msg.latitude, msg.longitude,
-                                 msg.altitude))
-                return msg, date
+                logging.debug(
+                    'GPS data from GGA: time=%s lat=%s long=%s alt=%s' %
+                    (msg.timestamp, msg.latitude, msg.longitude,
+                     msg.altitude))
+                return msg, date, speed, course
 
 
 def update_gps_info(timestamp, altitude, latitude, longitude,
@@ -124,9 +130,9 @@ def update_gps_info(timestamp, altitude, latitude, longitude,
         nmea_logger: A logger object for the raw NMEA data. Disabled if None.
     """
     while continue_gps.value:
-        gps_data, datestamp = get_info(config.GPS_SERIAL_PORT,
-                                       config.GPS_SERIAL_PORT_BAUDRATE,
-                                       nmea_logger=nmea_logger)
+        gps_data, datestamp, speed, course = get_info(
+            config.GPS_SERIAL_PORT, config.GPS_SERIAL_PORT_BAUDRATE,
+            nmea_logger=nmea_logger)
         try:
             if datestamp is not None:
                 timestamp.value = datestamp.strftime("%Y-%m-%dT") \
@@ -175,8 +181,13 @@ def update_gps_info(timestamp, altitude, latitude, longitude,
         except Exception as msg:
             longitude_outdated.value = 1
             logging.exception(msg)
+        try:
+            course.value = course
+            speed.value = speed
+        except Exception as msg:
+            logging.exception(msg)
         if gps_logger is not None:
-            gps_logger.info('%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' %
+            gps_logger.info('%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' %
                             (datetime.datetime.utcnow().isoformat(),
                              latitude.value,
                              latitude_direction.value,
@@ -186,7 +197,10 @@ def update_gps_info(timestamp, altitude, latitude, longitude,
                              timestamp.value,
                              latitude_outdated.value,
                              longitude_outdated.value,
-                             altitude_outdated.value))
+                             altitude_outdated.value,
+                             course.value,
+                             speed.value
+                             ))
         time.sleep(config.GPS_POLLTIME)
     return
 

@@ -182,6 +182,7 @@ def main():
     aprs_counter = config.APRS_RATE
     aprs_meta_data_counter = config.APRS_META_DATA_RATE
     sstv_counter = config.SSTV_RATE
+    aprs_telemetry_sequence_number = 1
     while True:
         start_time = time.time()
         # Write data with gps to data logger
@@ -222,8 +223,20 @@ def main():
             aprs_meta_data_counter -= 1
         if aprs_counter <= 0:
             # send APRS position and core data (only every n-th cycle)
-            aprs_position_msg = generate_aprs_position()
+            aprs_position_msg = aprs.generate_aprs_position()
             aprs.send_aprs(aprs_position_msg, full_power=True)
+            # telemetry package numbers must never get values higher than 8280
+            # sequence = (sequence + 1) & 0x1FFF
+            # see http://he.fi/doc/aprs-base91-comment-telemetry.txt
+            # TBD: the newer Base91 telemetry allows for bigger sequence
+            # numbers. For now, we cut it down to 1 - 999
+            if aprs_telemetry_sequence_number < 999:
+                aprs_telemetry_sequence_number += 1
+            else:
+                aprs_telemetry_sequence_number = 0
+            aprs_telemetry_msg = aprs.generate_aprs_telemetry_report(
+                aprs_telemetry_sequence_number)
+            aprs.send_aprs(aprs_telemetry_msg, full_power=True)
             # send APRS weather data
             aprs_weather_msg = generate_aprs_weather()
             aprs.send_aprs(aprs_weather_msg, full_power=True)
