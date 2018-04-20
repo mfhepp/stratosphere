@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 # aprs.py
 # routines for creating and transmitting APRS messages
 # APRS Protocol Reference
@@ -10,10 +9,15 @@
 # Version 1.0: http://www.aprs.org/doc/APRS101.PDF
 # Version 1.1: http://www.aprs.org/aprs11.html
 # Version 1.2: http://www.aprs.org/aprs12.html
+#
+# $ pip install afsk
+#
 
+import logging
 import os
+import datetime
 # import aprslib.packets.position
-from config import *
+import config
 from shared_memory import *
 # import ax25
 
@@ -34,6 +38,17 @@ def convert_decimal_to_base91(number):
         quotient, number = divmod(number, 91**n)
         text.append(chr(33 + quotient))
     return "".join(text).lstrip('!').rjust(max(1, width), '!')
+
+
+def DD_to_DMS(lat_or_lon):
+    """Converts a GPS coordinate in DD format (e.g. 47.5000) to DMS format
+    needed for APRS, i.e. 4730.00."""
+    dd = abs(float(lat_or_lon))
+    deg = int(dd)
+    minsec = dd - deg
+    cmin = int(minsec * 60)
+    csec = (minsec % 60) / float(60)
+    return float(deg * 100 + cmin + csec)
 
 
 def _compose_message(aprs_info, destination='', ssid=config.APRS_SSID,
@@ -77,23 +92,29 @@ def send_aprs(transceiver, frequency, ssid, aprs_info,
     try:
         # See https://github.com/casebeer/afsk
         if aprs_destination:
-            command = 'aprs -c {callsign} --destination {destination} -d {path} -o aprs.wav\
-            "{info}"'.format(
+            command = 'aprs -c {callsign} --destination {destination} \
+            -d {path} -o {usb_path}/aprs.wav "{info}"'.format(
                 callsign=ssid,
                 destination=aprs_destination,
                 path=aprs_path,
-                info=aprs_info)
+                info=aprs_info,
+                usb_path=config.USB_DIR)
         else:
-            command = 'aprs -c {callsign} -d {path} -o aprs.wav\
+            command = 'aprs -c {callsign} -d {path} -o {usb_path}/aprs.wav\
             "{info}"'.format(
                 callsign=ssid,
                 path=aprs_path,
-                info=aprs_info)
-# TODO: Either write to USB media or direct audio output
-# otherwise high wear-off on SD Cards
+                info=aprs_info,
+                usb_path=config.USB_DIR)
+        # TODO: It would be better to play the APRS directly from memory,
+        # but setting up PyAudio on Raspbian did not work.info
+        # So we take the USB stick instead of the SDCARD in order to
+        # minimize wear on the latter.
+        # The downside is that failure on the USB stick will break
+        # APRS.
         logging.info('Generating APRS wav for [%s]' % command)
         subprocess.call(command, shell=True)
-        if not os.path.exists('aprs.py'):
+        if not os.path.exists('%s/aprs.py' % config.USB_DIR):
             logging.error('Error: Problem generating APRS wav file.')
             return False
         logging.info('Sending APRS packet from %s via %s [%f MHz]' % (
@@ -108,9 +129,9 @@ def send_aprs(transceiver, frequency, ssid, aprs_info,
         # Also see
         # http://www.forum-raspberrypi.de/Thread-suche-python-befehl-fuer-den-alsa-amixer
         status = transceiver.transmit_audio_file(
-            frequency, ['aprs.wav'], full_power=full_power)
+            frequency, ['%s/aprs.py' % config.USB_DIR], full_power=full_power)
         try:
-            os.remove('aprs.wav')
+            os.remove('%s/aprs.py' % config.USB_DIR)
         except OSError:
             pass
     finally:
@@ -121,9 +142,9 @@ def send_aprs(transceiver, frequency, ssid, aprs_info,
 def generate_aprs_position():
     '''Generate APRS string'''
     # TIME = UTC!!!
-    utc = datetime.utcnow()
-    timestamp_dhm = "%d%02d%02d%z" % (utc.day, utc.hour, utc.minute)
-    timestamp_hms = "%d%02d%02d%h" % (utc.hour, utc.minute, utc.second)
+    utc = datetime.datetime.utcnow()
+    # timestamp_dhm = "%d%02d%02d%z" % (utc.day, utc.hour, utc.minute)
+    timestamp_hms = "%02d%02d%02dh" % (utc.hour, utc.minute, utc.second)
     # This format may not be used in Status Reports.
     # All data comes from the shared memory variables
     if config.GPS_OBFUSCATION and altitude_max.value > (altitude.value + 1000):
@@ -132,13 +153,26 @@ def generate_aprs_position():
     else:
         lat = latitude.value
         lon = longitude.value
-    latitude = "%04.2f%s" % (lat, latitude_direction.value)
-    longitude = "%05.2f%s" % (lon, longitude_direction.value)
-    altitude = "/A=%6i" % altitude.value * 3.28  # in feet
+    latitude_string = "%04.2f%s" % (DD_to_DMS(lat), latitude_direction.value)
+    longitude_string = "%05.2f%s" % (DD_to_DMS(lon), longitude_direction.value)
+    # altitude = "/A=%6i" % altitude.value * 3.28  # in feet
     # Battery voltage, discharge current, battery temperature
-    comment = "BATT_U=%.2f BATT_I=%.4f BATT_T=%2.2f" % (
-        battery_voltage.value, discharge_current.value, battery_temp.value)
-    info_field = "/%s/%s/%s>%s" % (timestamp_hms, latitude, longitude, comment)
+# TODO
+    speed = 34  # speed in knots from GPS
+# TODO
+    course = 180  # course from GPS
+    comment = 'STRATOSPHERE 2018'
+# TODO - weather report could be included
+    # comment = "BATT_U=%.2f BATT_I=%.4f BATT_T=%2.2f" % (
+    #    battery_voltage.value, discharge_current.value, battery_temp.value)
+    info_field = "@%s/%s/%sO%03i/%03i/A=%06i>%s" % (
+        timestamp_hms,
+        latitude_string,
+        longitude_string,
+        course,
+        speed,
+        altitude.value * 3.28,  # in feet
+        comment)
     # Extensions
     # Integrate Base91 telemetry directly?
     # - Raw NMEA strings (particular number of satellites)
@@ -192,6 +226,7 @@ def generate_aprs_telemetry_report():
     # humidity_internal.value
     info_field = "T#%3i,%s,%s,%s,%s,%s,%s" % (sequence, atm, t_int, t_ext, humidity, binary)
     msg = '%s>APRS,%s' % (APRS_SSID, APRS_PATH)
+    return info_field
 
 
 def generate_aprs_weather():
@@ -210,6 +245,7 @@ def generate_aprs_weather():
 
 
 if __name__ == '__main__':
+    print latitude.value
     logging.basicConfig(level=logging.INFO)
     logging.info('Testing APRS functions.')
     import aprslib
