@@ -21,7 +21,8 @@ def camera_handler():
     """tbd"""
     # record video
     # take still image
-    # update sstv image path
+    # take SSTV still image with larger font and different text
+    # update sstv image path variable
     # monitor freespace and update / shutdown
     # continue until graceful shutdown
     # cleanup
@@ -56,6 +57,12 @@ def main():
     global sensors_active, camera_active
     """Main probe functionality."""
     logging.info("Stratosphere 2018 system started.")
+#TODO: Turn off S.USV charging!
+    status = utility.disable_usv_charging()
+    if status:
+        logging.info('S.USV charging disabled.')
+    else:
+        logging.error('ERROR: S.USV charging not disabled.')
     # Set up data, GPS, NMEA and motion/DoF loggers
     gps_handler = logging.FileHandler(config.USB_DIR + config.DATA_DIR +
                                       'gps.csv')

@@ -36,6 +36,7 @@ GPS_SERIAL_PORT = "/dev/ttyUSB0"  # just an example
 GPS_SERIAL_PORT_BAUDRATE = 9600  # just an example
 GPS_POLLTIME = 0.1  # in seconds
 GPS_OBFUSCATION = False
+GPS_OBFUSCATION_DELTA = {'lat': 0.5, 'lon': 0.5}
 # GPS_ALTITUDE_MODE_CEILING = 10000
 # Altitude at which GPS will be switched to Airborne-6 mode
 # with <1g Acceleration; TBD

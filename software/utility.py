@@ -89,3 +89,11 @@ def check_and_initialize_USB():
             %s GB.' % format(float(free) / (1024 * 1024 * 1024), ','))
         logging.error('FATAL: Shutting down system.')
         os.system('sudo shutdown -h now')
+
+
+def disable_usv_charging():
+    """Turns of the charging of the S.USV backup power supply, because we
+    do not want to charge this emergency unit from the onboard batteries
+    during flight."""
+# TBD
+    return False

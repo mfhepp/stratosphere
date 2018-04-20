@@ -11,14 +11,23 @@
 # Version 1.1: http://www.aprs.org/aprs11.html
 # Version 1.2: http://www.aprs.org/aprs12.html
 
-import aprslib.packets.position
-
+import os
+# import aprslib.packets.position
 from config import *
 from shared_memory import *
+# import ax25
+
 
 def convert_decimal_to_base91(number):
-    '''Converts the number value to APRS Base91'''
-    # Based on https://github.com/rossengeorgiev/aprs-python/blob/master/aprslib/base91.py
+    """Converts the number value to APRS Base91.APRS
+    Based on
+    https://github.com/rossengeorgiev/aprs-python/blob/master/aprslib/base91.py
+
+    Args:
+        number (float): A value
+
+    Returns:
+        A base91 string."""
     text = []
     max_n = ceil(log(number) / log(91))
     for n in _range(int(max_n), -1, -1):
@@ -27,33 +36,116 @@ def convert_decimal_to_base91(number):
     return "".join(text).lstrip('!').rjust(max(1, width), '!')
 
 
-def send_aprs(aprs_message, power_level = TRANSMISSION_POWER_DEFAULT):
-    '''Tunes transceiver to APRS frequency, converts the APRS message to audio, and transmits the audio'''
-    # - nach PTT-Tastung liegt Vorlaufzeit bis zum Erreichen der vollen TX-Sendebereitschaft bei etwa 1 Sekunde
-    transmission_status = False
-    # when comverting APRS string to audio using Bell 202, mind the
-    # pre-emphasis problems, see pre-emphasis settings, see also http://www.febo.com/packet/layer-one/transmit.html
-    # also think about software-based volume / modulation control
-    # maybe using ALSA via Python wrapper, see e.g. http://larsimmisch.github.io/pyalsaaudio/pyalsaaudio.html#alsa-and-python
-    # also see http://www.forum-raspberrypi.de/Thread-suche-python-befehl-fuer-den-alsa-amixer
-    # initialize module - set frequency, modulation width, ...
-    # DRA818_SQ = None # Squelch detection.. Low -> Audio amplifier on
-    # DRA818_PTT = 1 # Tx/Rx control pin: Low->TX; High->RX
-    # DRA818_PD = 1 # Power saving control pin: Low->sleep mode; High->normal mode
-    # DRA818_HL = 1 # RF Power Selection: Low->0.5W; floated->1W
-    # activate transmission
-    # wait (for calibration)
-    # send audio
-    # ---> direct with aprs --callsign DK3IT-11  WIDE2-1  ":EMAIL    :test@example.com Test email"
-    command = 'aprs --callsign %s -d %s "%s"' % (APRS_SSID, APRS_PATH, aprs_message)
-    subprocess.call(command, shell=True)
+def _compose_message(aprs_info, destination='', ssid=config.APRS_SSID,
+                     aprs_path=config.APRS_PATH):
+    """Composes a full APRS message string from the given components."""
+    return b'{source}>{destination},{digis}:{info}'.format(
+        destination=destination,
+        source=ssid,
+        digis=aprs_path,
+        info=aprs_info)
 
-    # more elegant: directly invoke library, see
-    # https://github.com/casebeer/afsk/blob/master/afsk/ax25.py
 
-    # wait
-    # stop transmission
-    return transmission_status
+def send_aprs(transceiver, frequency, ssid, aprs_info,
+              aprs_path=config.APRS_PATH, aprs_destination='',
+              full_power=False):
+    """Transmits the given APRS message via the DRA818 transceiver object.
+
+    Args:
+        transceiver (DRA818): The DRA818 transceiver object.
+
+        frequency (float): The frequency in MHz. Must be a multiple of
+        25 KHz and within the allowed ham radio band allocation.
+
+        ssid (str): The APRS SSID (e.g. 'CALLSIGN-7')
+
+        aprs_info (str): The actual APRS payload.
+
+        aprs_path (str): The APRS path.
+
+        destination (str): The APRS destination. Needed for telemetry
+        definitions, since they have to be addressed to the SSID of the
+        sender of the telemetry data packages.
+
+        full_power (boolean): True sets the RF power level to the
+        maximum of 1 W, False sets it to 0.5W.
+
+    Returns:
+        True: Transmission successful.
+        False: Transmission failed.
+    """
+    try:
+        # See https://github.com/casebeer/afsk
+        if aprs_destination:
+            command = 'aprs -c {callsign} --destination {destination} -d {path} -o aprs.wav\
+            "{info}"'.format(
+                callsign=ssid,
+                destination=aprs_destination,
+                path=aprs_path,
+                info=aprs_info)
+        else:
+            command = 'aprs -c {callsign} -d {path} -o aprs.wav\
+            "{info}"'.format(
+                callsign=ssid,
+                path=aprs_path,
+                info=aprs_info)
+# TODO: Either write to USB media or direct audio output
+# otherwise high wear-off on SD Cards
+        logging.info('Generating APRS wav for [%s]' % command)
+        subprocess.call(command, shell=True)
+        if not os.path.exists('aprs.py'):
+            logging.error('Error: Problem generating APRS wav file.')
+            return False
+        logging.info('Sending APRS packet from %s via %s [%f MHz]' % (
+            ssid, aprs_path, frequency))
+        # when converting APRS string to audio using Bell 202, mind the
+        # pre-emphasis problems, see pre-emphasis settings, see also
+        # http://www.febo.com/packet/layer-one/transmit.html
+        transceiver.set_filters(pre_emphasis=config.PRE_EMPHASIS)
+        # TODO: Think about software-based volume / modulation control
+        # maybe using ALSA via Python wrapper, see e.g.
+        # http://larsimmisch.github.io/pyalsaaudio/pyalsaaudio.html#alsa-and-python
+        # Also see
+        # http://www.forum-raspberrypi.de/Thread-suche-python-befehl-fuer-den-alsa-amixer
+        status = transceiver.transmit_audio_file(
+            frequency, ['aprs.wav'], full_power=full_power)
+        try:
+            os.remove('aprs.wav')
+        except OSError:
+            pass
+    finally:
+        transceiver.stop_transmitter()
+    return status
+
+
+def generate_aprs_position():
+    '''Generate APRS string'''
+    # TIME = UTC!!!
+    utc = datetime.utcnow()
+    timestamp_dhm = "%d%02d%02d%z" % (utc.day, utc.hour, utc.minute)
+    timestamp_hms = "%d%02d%02d%h" % (utc.hour, utc.minute, utc.second)
+    # This format may not be used in Status Reports.
+    # All data comes from the shared memory variables
+    if config.GPS_OBFUSCATION and altitude_max.value > (altitude.value + 1000):
+        lat = latitude.value + config.GPS_OBFUSCATION_DELTA['lat']
+        lon = longitude.value + config.GPS_OBFUSCATION_DELTA['lon']
+    else:
+        lat = latitude.value
+        lon = longitude.value
+    latitude = "%04.2f%s" % (lat, latitude_direction.value)
+    longitude = "%05.2f%s" % (lon, longitude_direction.value)
+    altitude = "/A=%6i" % altitude.value * 3.28  # in feet
+    # Battery voltage, discharge current, battery temperature
+    comment = "BATT_U=%.2f BATT_I=%.4f BATT_T=%2.2f" % (
+        battery_voltage.value, discharge_current.value, battery_temp.value)
+    info_field = "/%s/%s/%s>%s" % (timestamp_hms, latitude, longitude, comment)
+    # Extensions
+    # Integrate Base91 telemetry directly?
+    # - Raw NMEA strings (particular number of satellites)
+    # - Ground speed (maybe via NMEA)
+    # Ascent / descent rate
+    # Orientation (Compass)
+    return info_field
 
 
 def generate_aprs_telemetry_definition():
@@ -61,14 +153,17 @@ def generate_aprs_telemetry_definition():
     # p. 68 in V 1.1
     # The messages addressee is the callsign of the station transmitting the telemetry data. For example, if N0QBF launches a balloon with the callsign N0QBF-11, then the four messages are addressed to N0QBF-11.
     return ""
-
 # TIME = UTC!!!
 
+
 def generate_aprs_telemetry_report():
+        # increment counter and  make sure that it and all of the telemetry
+    # values never get values higher than 8280
     # all data comes from the shared memory variables
     # sequence = (sequence + 1) & 0x1FFF  # see http://he.fi/doc/aprs-base91-comment-telemetry.txt
     # TBD: the newer Base91 telemetry allows for bigger sequence numbers
 # TIME = UTC!!!
+    global sequence
     if sequence < 999:
         sequence += 1
     else:
@@ -85,12 +180,7 @@ def generate_aprs_telemetry_report():
     # Channel 4: Humidity 0.0 - 1.0 -> multiply by 200
     humidity = "%3i" % humidity_external.value * 200
     binary = "00000000"
-
     # Nice to have:
-    # Channel 5: Compass / orientation
-    # Binary 1: Camera 1 on/on
-    # Binary 2: Camera 2 on/off
-    # Binary 3 - 8: tbd
     # T#005,199,000,255,073,123,01101001
     # internal_temp.value
     # external_temp_ADC.value
@@ -98,50 +188,59 @@ def generate_aprs_telemetry_report():
     # battery_voltage.value
     # discharge_current.value
     # battery_temp.value
-    # atmospheric_pressure.value
+
     # humidity_internal.value
-    # humidity_external.value
-    # motion_sensor_status.value
-    # motion_sensor_message.value
     info_field = "T#%3i,%s,%s,%s,%s,%s,%s" % (sequence, atm, t_int, t_ext, humidity, binary)
     msg = '%s>APRS,%s' % (APRS_SSID, APRS_PATH)
-
-
-def generate_aprs_position():
-    '''Generate APRS string'''
-    # increment counter and  make sure that it and all of the telemetry
-    # values never get values higher than 8280
-# TIME = UTC!!!
-    utc = datetime.utcnow()
-    timestamp_dhm = "%d%02d%02d%z" % (utc.day, utc.hour, utc.minute)
-    timestamp_hms = "%d%02d%02d%h" % (utc.hour, utc.minute, utc.second)
-    # This format may not be used in Status Reports.
-    # all data comes from the shared memory variables
-    if config.GPS_OBFUSCATION and altitude_max.value > (altitude.value + 1000):
-        pass
-    else:
-        latitude = "%04.2f%s" % (latitude.value, latitude_direction.value)
-        longitude = "%05.2f%s" % (longitude.value, longitude_direction.value)
-    altitude = "/A=%6i" % altitude.value*3.28  # in feet
-
-    # Battery voltage, discharge current, battery temperature
-    comment = "BATT_U=%.2f BATT_I=%.4f BATT_T=%2.2f" % (battery_voltage.value, discharge_current.value, battery_temp.value)
-
-    info_field = "/%s/%s/%s>%s" % (timestamp_hms, latitude, longitude, comment)
-
-    # Extensions
-    # Intetegrate Base91 telemetry directly?
-    # - Raw NMEA strings (particular number of satellites)
-    # - Ground speed (maybe via NMEA)
-    # Ascent / descent rate
-    # Orientation (Compass)
-
-    return info_field
 
 
 def generate_aprs_weather():
     '''Generate APRS weather message'''
     # For humidity, pressure and outside temperature, also the weather
     # format of APRS could be used (tbc)
-    info_field = ""
+# TODO: Check whether aprs.fi will display weather station info for
+# balloon SSID
+# Otherwise we use two SSIDs
+    # humidity_external.value
+    # atmospheric_pressure.value
+    # external_temp.value
+
+    info_field = ''
     return info_field
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
+    logging.info('Testing APRS functions.')
+    import aprslib
+    logging.info('Now generating and parsing APRS messages.')
+# TODO: APRSlib expects full message, methods return just info part
+    try:
+        for messages in [
+                generate_aprs_position(),
+                generate_aprs_telemetry_definition(),
+                generate_aprs_telemetry_report(),
+                generate_aprs_weather()]:
+            aprs_string = _compose_message(message)
+            result = aprslib.parsing.parse(aprs_string)
+            logging.info('APRS message: %s' % aprs_string)
+            for key, value in result.iteritems():
+                logging.info('%s = %s' (key, value))
+    except (aprslib.ParseError, aprslib.UnknownFormat) as exp:
+        logging.error('Error: Parsing APRS message failed.')
+    logging.info('Now starting APRS transmission tests.')
+    transceiver = dra818.DRA818(
+        uart=config.SERIAL_PORT_TRANSCEIVER,
+        ptt_pin=config.DRA818_PTT,
+        power_down_pin=config.DRA818_PD,
+        rf_power_level_pin=config.DRA818_HL,
+        frequency=config.APRS_FREQUENCY,
+        squelch_level=1)
+    raw_input('Press ENTER to start APRS transmission [CTRL-C for exit].')
+    for message in [position_report, telemetry_definition_report,
+                    telemetry_report, weather_report]:
+        status = send_aprs(transceiver, destination, config.APRS_FREQUENCY,
+                           config.APRS_SSID, message)
+        logging.info('Transmission status: %s' % status)
+        raw_input('Press ENTER to for next transmission [CTRL-C for exit].')
+    logging.info('APRS tests completed.')
