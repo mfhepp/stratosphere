@@ -56,6 +56,7 @@ def get_pressure():
     # http://www.raspberrypi-spy.co.uk/2015/04/bmp180-i2c-digital-barometric-pressure-sensor/
     # I2C Slave Address 0x28 (not certain)
     # SENSOR_ID_PRESSURE
+    # unit mbar
     return 0.0
 
 

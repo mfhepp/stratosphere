@@ -102,22 +102,19 @@ def get_info(uart, baudrate, nmea_logger=None):
             if line.startswith("$GPRMC"):
                 msg = pynmea2.parse(line)
                 date = msg.datestamp
-                speed = msg.spd_over_grnd
-                course = msg.true_course
-                logging.debug(
-                    'GPS data from RMC: date=%s speed=%.2f course=%1.f' %
-                    (date, speed, course))
+                logging.debug('GPS data from RMC: date=%s' % date)
             elif line.startswith("$GPGGA"):
                 msg = pynmea2.parse(line)
-                logging.debug(
-                    'GPS data from GGA: time=%s lat=%s long=%s alt=%s' %
-                    (msg.timestamp, msg.latitude, msg.longitude,
-                     msg.altitude))
-                return msg, date, speed, course
+                logging.debug('GPS data from GGA: time=%s lat=%s\
+ long=%s alt=%s' % (msg.timestamp, msg.latitude, msg.longitude, msg.altitude))
+                return msg, date
 
 
-def update_gps_info(timestamp, altitude, latitude, longitude,
-                    gps_logger, nmea_logger):
+#def update_gps_info(timestamp, altitude, latitude, longitude, course,
+#                    speed, continue_gps, longitude_outdated, latitude_outdated,
+#                    gps_logger, nmea_logger):
+
+def update_gps_info(gps_logger, nmea_logger):
     """This function continuously updates the shared memory variables
     for GPS data and is meant to run as a child process.
     It also writes a GPS position log file.
@@ -125,12 +122,14 @@ def update_gps_info(timestamp, altitude, latitude, longitude,
     It stops once the shared memory variable continue_gps contains 0.
 
     Args:
+TODO
         timestamp, altitude, latitude, longitude - shared memory variables
         gps_logger: A logger object for the GPS data. Disabled if None.
         nmea_logger: A logger object for the raw NMEA data. Disabled if None.
     """
     while continue_gps.value:
-        gps_data, datestamp, speed, course = get_info(
+        logging.info('continue_gps.value: %s' % continue_gps.value)
+        gps_data, datestamp = get_info(
             config.GPS_SERIAL_PORT, config.GPS_SERIAL_PORT_BAUDRATE,
             nmea_logger=nmea_logger)
         try:
@@ -181,13 +180,8 @@ def update_gps_info(timestamp, altitude, latitude, longitude,
         except Exception as msg:
             longitude_outdated.value = 1
             logging.exception(msg)
-        try:
-            course.value = course
-            speed.value = speed
-        except Exception as msg:
-            logging.exception(msg)
         if gps_logger is not None:
-            gps_logger.info('%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' %
+            gps_logger.info('%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' %
                             (datetime.datetime.utcnow().isoformat(),
                              latitude.value,
                              latitude_direction.value,
@@ -197,10 +191,7 @@ def update_gps_info(timestamp, altitude, latitude, longitude,
                              timestamp.value,
                              latitude_outdated.value,
                              longitude_outdated.value,
-                             altitude_outdated.value,
-                             course.value,
-                             speed.value
-                             ))
+                             altitude_outdated.value))
         time.sleep(config.GPS_POLLTIME)
     return
 
@@ -230,20 +221,18 @@ if __name__ == '__main__':
     set_to_flight_mode(uart, baudrate)
     # Initialize GPS subprocess or thread
     p = mp.Process(target=update_gps_info,
-                   args=(timestamp, altitude, latitude, longitude,
-                         gps_logger, nmea_logger))
+                   args=(gps_logger, nmea_logger))
     p.start()
     # Wait for valid GPS position and time, and sync time
-    logging.info('Waiting for valid initial GPS position.')
-    while longitude_outdated.value > 0 or latitude_outdated.value > 0:
-        time.sleep(1)
+#    logging.info('Waiting for valid initial GPS position.')
+#    while longitude_outdated.value > 0 or latitude_outdated.value > 0:
+#        time.sleep(1)
     logging.info('Now reading GPS info from shared memory.')
-    for i in range(20):
+    for i in range(5):
         logging.info('GPS: lat=%f %s, long=%f %s, alt=%fm, timestamp: %s' %
                      (latitude.value, latitude_direction.value,
                       longitude.value, longitude_direction.value,
                       altitude.value, timestamp.value))
-
         time.sleep(3)
     continue_gps.value = 0
     time.sleep(1)

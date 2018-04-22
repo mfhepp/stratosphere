@@ -18,8 +18,15 @@ import os
 import datetime
 import config
 from shared_memory import *
+from math import ceil, log
+from aprslib import int_type
+import dra818
+import gps_info
+import subprocess
+import RPi.GPIO as GPIO
+import random
 
-sequence_number = 1
+sequence_number = 1113
 
 
 def timestamp_hms():
@@ -49,10 +56,11 @@ def convert_decimal_to_base91(number, width=1):
     if not 0 <= number <= 8280:
         raise ValueError('Value must be between 0 and 8280.')
     text = []
-    max_n = ceil(log(number) / log(91))
-    for n in _range(int(max_n), -1, -1):
-        quotient, number = divmod(number, 91**n)
-        text.append(chr(33 + quotient))
+    if number > 0:
+        max_n = ceil(log(number) / log(91))
+        for n in xrange(int(max_n), -1, -1):
+            quotient, number = divmod(number, 91**n)
+            text.append(chr(33 + quotient))
     return "".join(text).lstrip('!').rjust(max(1, width), '!')
 
 
@@ -68,10 +76,11 @@ def DD_to_DMS(lat_or_lon):
 
 
 def clip(val, min_, max_):
+    """Returns val, if val if min_ < val < max_, otherwise min_ resp. max_."""
     return min_ if val < min_ else max_ if val > max_ else val
 
 
-def _compose_message(aprs_info, destination='', ssid=config.APRS_SSID,
+def _compose_message(aprs_info, destination='APRS', ssid=config.APRS_SSID,
                      aprs_path=config.APRS_PATH):
     """Composes a full APRS message string from the given components."""
     return b'{source}>{destination},{digis}:{info}'.format(
@@ -81,27 +90,21 @@ def _compose_message(aprs_info, destination='', ssid=config.APRS_SSID,
         info=aprs_info)
 
 
-def send_aprs(transceiver, frequency, ssid, aprs_info,
-              aprs_path=config.APRS_PATH, aprs_destination='',
-              full_power=False):
+def send_aprs(transceiver, aprs_info, frequency=config.APRS_FREQUENCY,
+              ssid=config.APRS_SSID, aprs_path=config.APRS_PATH,
+              aprs_destination='', full_power=False):
     """Transmits the given APRS message via the DRA818 transceiver object.
 
     Args:
         transceiver (DRA818): The DRA818 transceiver object.
-
+        aprs_info (str): The actual APRS payload.
         frequency (float): The frequency in MHz. Must be a multiple of
         25 KHz and within the allowed ham radio band allocation.
-
         ssid (str): The APRS SSID (e.g. 'CALLSIGN-7')
-
-        aprs_info (str): The actual APRS payload.
-
         aprs_path (str): The APRS path.
-
-        destination (str): The APRS destination. Needed for telemetry
+        aprs_destination (str): The APRS destination. Needed for telemetry
         definitions, since they have to be addressed to the SSID of the
         sender of the telemetry data packages.
-
         full_power (boolean): True sets the RF power level to the
         maximum of 1 W, False sets it to 0.5W.
 
@@ -113,19 +116,27 @@ def send_aprs(transceiver, frequency, ssid, aprs_info,
         # See https://github.com/casebeer/afsk
         if aprs_destination:
             command = 'aprs -c {callsign} --destination {destination} \
-            -d {path} -o {usb_path}/aprs.wav "{info}"'.format(
+-d {path} -o {usb_path}/aprs.wav "{info}"'.format(
                 callsign=ssid,
                 destination=aprs_destination,
                 path=aprs_path,
                 info=aprs_info,
                 usb_path=config.USB_DIR)
         else:
-            command = 'aprs -c {callsign} -d {path} -o {usb_path}/aprs.wav\
-            "{info}"'.format(
-                callsign=ssid,
-                path=aprs_path,
-                info=aprs_info,
-                usb_path=config.USB_DIR)
+            if '"' in aprs_info:
+                command = "aprs -c {callsign} -d {path} -o {usb_path}/aprs.wav\
+ '{info}'".format(callsign=ssid,
+                  path=aprs_path,
+                  info=aprs_info,
+                  usb_path=config.USB_DIR)
+            else:
+                command = 'aprs -c {callsign} -d {path} -o {usb_path}/aprs.wav\
+ "{info}"'.format(callsign=ssid,
+                  path=aprs_path,
+                  info=aprs_info,
+                  usb_path=config.USB_DIR)
+ # TODO if info contains # and " - what shall we do???
+
         # TODO: It would be better to play the APRS directly from memory,
         # but setting up PyAudio on Raspbian did not work.
         # So we take the USB stick instead of the SDCARD in order to
@@ -134,7 +145,8 @@ def send_aprs(transceiver, frequency, ssid, aprs_info,
         # APRS completely.
         logging.info('Generating APRS wav for [%s]' % command)
         subprocess.call(command, shell=True)
-        if not os.path.exists('%s/aprs.py' % config.USB_DIR):
+        print '-- > %s/aprs.py' % config.USB_DIR
+        if not os.path.exists('%s/aprs.wav' % config.USB_DIR):
             logging.error('Error: Problem generating APRS wav file.')
             return False
         logging.info('Sending APRS packet from %s via %s [%f MHz]' % (
@@ -149,13 +161,69 @@ def send_aprs(transceiver, frequency, ssid, aprs_info,
         # Also see
         # http://www.forum-raspberrypi.de/Thread-suche-python-befehl-fuer-den-alsa-amixer
         status = transceiver.transmit_audio_file(
-            frequency, ['%s/aprs.py' % config.USB_DIR], full_power=full_power)
+            frequency, ['%s/aprs.wav' % config.USB_DIR], full_power=full_power)
         try:
-            os.remove('%s/aprs.py' % config.USB_DIR)
+            os.remove('%s/aprs.wav' % config.USB_DIR)
         except OSError:
             pass
     finally:
         transceiver.stop_transmitter()
+    return status
+
+
+def send_telemetry_definitions(transceiver, frequency=config.APRS_FREQUENCY,
+                               ssid=config.APRS_SSID,
+                               aprs_path=config.APRS_PATH,
+                               aprs_destination='',
+                               full_power=False):
+    """Transmits the APRS telemetry definition messages via the DRA818
+    transceiver object.The five channel definitions are hard-wired in the code.
+
+    Note: APRS telemetry definitions must be addressed to the SSID of the
+    beaconing station, i.e. the SSID of the balloon.
+
+    Args:
+        transceiver (DRA818): The DRA818 transceiver object.
+        frequency (float): The frequency in MHz. Must be a multiple of
+        25 KHz and within the allowed ham radio band allocation.
+        ssid (str): The APRS SSID (e.g. 'CALLSIGN-7')
+        aprs_path (str): The APRS path.
+        aprs_destination (str): The APRS destination. Telemetry
+        definitions have to be addressed to the SSID of the
+        sender of the telemetry data packets.
+        full_power (boolean): True sets the RF power level to the
+        maximum of 1 W, False sets it to 0.5W.
+
+    Returns:
+        True: Transmission successful.
+        False: Transmission failed.
+    """
+    # Check that all four files exist, otherwise regenerate all four
+    ok = True
+    wav_files = ['aprs_telemetry_%i.wav' % i for i in range(4)]
+    for fn in wav_files:
+        ok = ok and os.path.exists(fn)
+    if not ok:
+        for idx, msg in enumerate(generate_aprs_telemetry_definition()):
+            # command = 'aprs -c {callsign} --destination {destination} \
+            command = 'aprs -c {callsign} -d {path} -o aprs_telemetry_{i}.wav \
+"{info}"'.format(
+                callsign=ssid,
+                destination=aprs_destination,
+                path=aprs_path,
+                i=idx,
+                info=msg)
+            logging.info('Generating APRS wav for [%s]' % command)
+            subprocess.call(command, shell=True)
+            if not os.path.exists('aprs_telemetry_%i.wav' % idx):
+                logging.error(
+                    'Error: Problem generating aprs_telemetry_%i.wav' % idx)
+                return False
+    # Transmit all four messages in one turn, i.e. without turning off
+    # the transceiver.
+    transceiver.set_filters(pre_emphasis=config.PRE_EMPHASIS)
+    status = transceiver.transmit_audio_file(
+        frequency, wav_files, full_power=full_power)
     return status
 
 
@@ -176,8 +244,8 @@ def generate_aprs_position(telemetry=False):
     else:
         lat = latitude.value
         lon = longitude.value
-    latitude_string = '%04.2f%s' % (DD_to_DMS(lat), latitude_direction.value)
-    longitude_string = '%05.2f%s' % (DD_to_DMS(lon), longitude_direction.value)
+    latitude_string = '%07.2f%s' % (DD_to_DMS(lat), latitude_direction.value)
+    longitude_string = '%08.2f%s' % (DD_to_DMS(lon), longitude_direction.value)
     if telemetry:
         # Channel 1: Pressure: 0 - 1500 -> * 4
         atm = int(clip(atmospheric_pressure.value, 0, 1500) * 4)
@@ -186,11 +254,21 @@ def generate_aprs_position(telemetry=False):
         # Channel 3: Temperature outside -> 128 + 128 -> add 100
         t_ext = int(clip(external_temp.value, -128, 128) + 128) * 32
         # Channel 4: Humidity 0.0 - 1.0 -> multiply by 8000
-        humidity = humidity_external.value * 8000
+        humidity = int(humidity_external.value * 8000)
         # Channel 5: Battery voltage 0.0 - 15 V -> multiply by 256
-        voltage = battery_voltage.value * 256
+        voltage = int(battery_voltage.value * 256)
+
+# TODO
+        atm = random.randint(0, 8000)
+        t_int = random.randint(0, 8000)
+        t_ext = random.randint(0, 8000)
+        humidity = random.randint(0, 8000)
+        voltage = random.randint(0, 8000)
+# TEST
         sequence_number = (sequence_number + 1) & 0x1FFF
-        comment = '|%s%s%s%s%s%s|' % (
+        logging.info('Sequence number: %i, %s' % (sequence_number,
+                     convert_decimal_to_base91(sequence_number)))
+        comment = b'|%s%s%s%s%s%s|' % (
             convert_decimal_to_base91(sequence_number),
             convert_decimal_to_base91(atm),
             convert_decimal_to_base91(t_int),
@@ -202,15 +280,14 @@ def generate_aprs_position(telemetry=False):
             battery_voltage.value, battery_temp.value)
     # See pp. 32f. in the APR 1.01 spec for the message format.
     # The 'O' is the APRS symbol code for a balloon ('>' would be car)
-    info_field = "/%s/%s/%sO%03i/%03i/A=%06i %s" % (
+    info_field = "/%s%s/%sO/A=%06i %s" % (
         timestamp_hms(),
         latitude_string,
         longitude_string,
-        course.value,
-        speed.value,
         altitude.value * 3.28,
         comment)
     # Possible extensions
+    # - course and speed
     # - weather report could be included
     # - Raw NMEA strings (particular number of satellites)
     # - Ascent / descent rate
@@ -218,66 +295,72 @@ def generate_aprs_position(telemetry=False):
     return info_field
 
 
-def generate_aprs_telemetry_report(sequence_number):
-    """DEPRECATED. ONLYE KEPT AS A BACKUP FOR NOW.
+def generate_aprs_telemetry_definition(target_station=config.APRS_SSID):
+    """Creates a list of  APRS telemetry definition messages, namely the
+    names, units, and equation coefficients.
+    See p. 68 in V 1.1 spec.
 
-    Generate an APRS telemetry payload string.
-
-    All data comes from the shared memory variables.
-    See http://www.aprs.net/vm/DOS/TELEMTRY.HTM for the official definition."""
-
-    # All values must be mapped to a 8-Bit unsigned integer
-    # Channel 1: Pressure: 0 - 1500 -> divide by 5
-    atm = int(atmospheric_pressure.value / 5.0)
-    # Channel 2: Temperature inside -> 128 + 128 -> add 100
-    t_int = int(internal_temp.value + 100)
-    # Channel 3: Temperature outside -> 128 + 128 -> add 100
-    t_ext = int(external_temp.value + 100)
-    # Channel 4: Humidity 0.0 - 1.0 -> multiply by 200
-    humidity = humidity_external.value * 200
-    # Channel 5: Battery voltage 0.0 - 15 V -> multiply by 16
-    voltage = battery_voltage.value * 16
-    binary = "00000000"
-    # Nice to have:
-    # external_temp_ADC.value
-    # cpu_temp.value
-    # discharge_current.value
-    # battery_temp.value
-    # humidity_internal.value
-    # T#sss,111,222,333,444,555,xxxxxxxx
-    info_field = "T#%3i,%3i,%3i,%3i,%3i,%s" % (
-        sequence, atm, t_int, t_ext, humidity, voltage, binary)
-    return info_field
-
-
-def generate_aprs_telemetry_definition():
-    '''Creates Base91 Comment Telemetry message (units, labels, ...)'''
-    # p. 68 in V 1.1
-    # The messages addressee is the callsign of the station transmitting the telemetry data. For example, if N0QBF launches a balloon with the callsign N0QBF-11, then the four messages are addressed to N0QBF-11.
-    return ""
-# TIME = UTC!!!
+    Args:
+        target_station (str): The SSID of the balloon."""
+    # We do not use binary fields.
+    parameters_name_message = ':%s:PARM.ATM,T_Int,T_Ext,Humid,Batt' %\
+        target_station.ljust(9, ' ')
+    parameters_unit_message = ':%s:UNIT.mBar,degC,degC,%%,V' %\
+        target_station.ljust(9, ' ')
+    # Equation coefficients (a,b,c) = a * value^2 + b * value + c
+    # Hard-wired, cf. generate_aprs_position(telemetry=True)
+    c1 = '0,0.25,0'  # Channel 1: Pressure: 0 - 1500 -> * 4
+    # Channels 2 and 3: Temperature -128...+128 °C -> add 128 and * 32
+    c2 = '0,0.03125,-128'
+    c3 = '0,0.03125,-128'
+    # Channel 4: Humidity 0.0 - 1.0 -> multiply by 8000
+    # Because we want %, we divide just by 80
+    c4 = '0,0.0125,0'
+    # Channel 5: Battery voltage 0.0 - 15 V -> multiply by 256
+    c5 = '0,0.00390625,0'
+    parameters_equation_coefficients_message = \
+        ':{}:EQNS.{},{},{},{},{}'.format(
+            target_station.ljust(9, ' '), c1, c2, c3, c4, c5)
+    bit_sense_project_name_message = ':%s:BITS.00000000,%s' % \
+        (target_station.ljust(9, ' '), config.APRS_COMMENT[:22])
+    return [parameters_name_message, parameters_unit_message,
+            parameters_equation_coefficients_message,
+            bit_sense_project_name_message]
 
 
 if __name__ == '__main__':
-    print latitude.value
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
+    # Fetching single valid GPS positiobn
+    uart = config.GPS_SERIAL_PORT
+    baudrate = config.GPS_SERIAL_PORT_BAUDRATE
+    logging.info('GPS found at %s with %i baud' % (uart, baudrate))
+    logging.info('Trying to read current position.')
+    msg, date = gps_info.get_info(uart, baudrate)
+    altitude.value = msg.altitude
+    latitude.value = float(msg.latitude)
+    latitude_direction.value = msg.lat_dir
+    longitude.value = float(msg.longitude)
+    longitude_direction.value = msg.lon_dir
+    logging.info('Shared memory variables initialized.')
     logging.info('Testing APRS functions.')
     import aprslib
     logging.info('Now generating and parsing APRS messages.')
-# TODO: APRSlib expects full message, methods return just info part
-    test_messages = [generate_aprs_position(),
-                     generate_aprs_position(telemetry=True),
-                     generate_aprs_telemetry_definition()]
+    aprs_strings = [_compose_message(message) for message in [
+        generate_aprs_position(), generate_aprs_position(telemetry=True)]]
+    # On-air definition of telemetry parameters must be addressed to SSID
+    # of the telemetry sending station, see p- 68 of APRS 1.0 spec.
+    aprs_strings.extend([_compose_message(message) for message in
+                         generate_aprs_telemetry_definition()])
     try:
-# TODO: telemetry definition must be sent to balloon SSID
-        for messages in test_messages:
-            aprs_string = _compose_message(message)
-            result = aprslib.parsing.parse(aprs_string)
-            logging.info('APRS message: %s' % aprs_string)
-            for key, value in result.iteritems():
-                logging.info('%s = %s' (key, value))
+        for message in aprs_strings:
+            logging.info('Trying to parse APRS: %s' % message)
+            result = aprslib.parsing.parse(message)
+            logging.info('APRS message: %s parsing OK:' % message)
+            for key in result:
+                logging.debug('\t%s = %s' % (key, result[key]))
     except (aprslib.ParseError, aprslib.UnknownFormat) as exp:
         logging.error('Error: Parsing APRS message failed.')
+        logging.exception(msg)
     logging.info('Now starting APRS transmission tests.')
     transceiver = dra818.DRA818(
         uart=config.SERIAL_PORT_TRANSCEIVER,
@@ -287,19 +370,25 @@ if __name__ == '__main__':
         frequency=config.APRS_FREQUENCY,
         squelch_level=1)
     raw_input('Press ENTER to start APRS transmission [CTRL-C for exit].')
-    logging.info('Sending position report without telemetry.')
-    status = send_aprs(transceiver, config.APRS_FREQUENCY, config.APRS_SSID,
-                       generate_aprs_position(telemetry=False),
-                       aprs_path=config.APRS_PATH, aprs_destination='',
-                       full_power=False)
-    logging.info('Transmission status: %s' % status)
+    logging.info('Sending four telemetry definition messages.')
+    # status = send_telemetry_definitions(transceiver, full_power=True)
+    # logging.info('Transmission status: %s' % status)
     raw_input('Press ENTER to for next transmission [CTRL-C for exit].')
     logging.info('Sending position report with telemetry.')
-    status = send_aprs(transceiver, config.APRS_FREQUENCY, config.APRS_SSID,
-                       generate_aprs_position(telemetry=True),
-                       aprs_path=config.APRS_PATH, aprs_destination='',
-                       full_power=False)
+    status = send_aprs(transceiver, generate_aprs_position(telemetry=True))
     logging.info('Transmission status: %s' % status)
-    raw_input('Press ENTER to for next transmission [CTRL-C for exit].')
-# Send telemetry definition messages
-    logging.info('APRS tests completed.')
+    while True:
+        try:
+            raw_input('Press ENTER to for next transmission' +
+                      ' [CTRL-C for exit].')
+            logging.info('Sending position report with telemetry.')
+            status = send_aprs(transceiver,
+                               generate_aprs_position(telemetry=True),
+                               full_power=True)
+            logging.info('Transmission status: %s' % status)
+        except KeyboardInterrupt:
+            logging.info('APRS tests completed.')
+            break
+        finally:
+            transceiver.stop_transmitter()
+            GPIO.cleanup()

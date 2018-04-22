@@ -62,7 +62,6 @@ def check_and_initialize_USB():
                 config.LOGFILE_DIR,
                 config.VIDEO_DIR,
                 config.IMAGE_DIR,
-                config.SSTV_DIR,
                 config.DATA_DIR]:
             if not os.path.exists(config.USB_DIR + folder):
                 os.makedirs(config.USB_DIR + folder)

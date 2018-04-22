@@ -182,6 +182,7 @@ class DRA818(object):
         Agrs:
             full_power (boolean): True sets the RF power level to the
             maximum of 1 W, False sets it to 0.5W."""
+        GPIO.setmode(GPIO.BOARD)
         if full_power:
             # Set rf_power_level_pin to high impedance / floating for 1W
             GPIO.setup(self.rf_power_level_pin, GPIO.IN)
@@ -196,6 +197,9 @@ class DRA818(object):
 
     def stop_transmitter(self):
         """Turns off the transmitter."""
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(self.ptt_pin, GPIO.OUT, initial=GPIO.HIGH)
+# check why the GPIO status is not preserved????
         GPIO.output(self.ptt_pin, GPIO.HIGH)
         logging.info('Transceiver OFF.')
         return
@@ -373,8 +377,7 @@ class DRA818(object):
                 for audio_file_path in audio_files:
                     logging.debug('WAV path: %s' % audio_file_path)
                     status = status and _play_audio_file(audio_file_path)
-                    time.sleep(0.4)
-                time.sleep(1)
+                time.sleep(0.3)
                 self.stop_transmitter()
             else:
                 return False

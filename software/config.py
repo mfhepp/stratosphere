@@ -9,9 +9,9 @@ import RPi.GPIO as GPIO
 DEBUG = True
 POLL_FREQUENCY = 1  # Sensor poll frequency in Hz
 CALLSIGN = 'DL0UBW'  # insert your mission callsign
-APRS_SSID = CALLSIGN + '-11'
+APRS_SSID = CALLSIGN + '-6'
 MISSION_TEXT = 'High-Altitude Balloon \nMission STRATOSPHERE 2018\n' + CALLSIGN
-APRS_COMMENT = 'UniBwM Stratosphere 2018'
+APRS_COMMENT = 'UniBwM Balloon 2018'
 IMAGE_TEXT = 'High-Altitude Balloon Mission DL0UBW, UniBwM \
 %(time)s\nalt=%(alt)s, lat=%(lat)s, lon=%(lon)s'
 VIDEO_TEXT = 'High-Altitude Balloon Mission DL0UBW, UniBwM \
@@ -21,10 +21,10 @@ COPYRIGHT_TEXT = 'Copyright (c) 2018 Universitaet der Bundeswehr Muenchen'
 # Directories and filenames
 USB_DIR = "/media/usbstick"  # Mounting point of the external USB stick
 DISK_SPACE_MINIMUM = 16 * 1024 * 1024 * 1024  # 16 GB
-LOGFILE_DIR = "logfiles/"
-VIDEO_DIR = "videos/"
-IMAGE_DIR = "still_images/"
-DATA_DIR = "data/"
+LOGFILE_DIR = "/logfiles/"
+VIDEO_DIR = "/videos/"
+IMAGE_DIR = "/still_images/"
+DATA_DIR = "/data/"
 AUDIO_BEACON = "files/beacon-english.wav"
 AUDIO_SELFTEST_START = 'files/selftest-start.wav'
 AUDIO_SELFTEST_OK = 'files/selftest-ok.wav'
@@ -35,7 +35,7 @@ AUDIO_APRS_TEST_SIGNAL = 'files/aprs-1200hz-2200hz-6db.wav'
 GPS_SERIAL_PORT = "/dev/ttyUSB0"  # just an example
 GPS_SERIAL_PORT_BAUDRATE = 9600  # just an example
 GPS_POLLTIME = 0.1  # in seconds
-GPS_OBFUSCATION = False
+GPS_OBFUSCATION = True
 GPS_OBFUSCATION_DELTA = {'lat': 0.5, 'lon': 0.5}
 # GPS_ALTITUDE_MODE_CEILING = 10000
 # Altitude at which GPS will be switched to Airborne-6 mode
