@@ -177,7 +177,7 @@ class InternalCamera(object):
         if rotation not in [0, 90, 180, 270]:
             raise ValueError('Rotation must be 0, 90, 180 or 270 degrees.')
         t = time.strftime("%Y-%m-%d_%H-%M-%S")
-        logging.info("Recording video with a duration of %d seconds [%s]." %
+        logging.info('Recording video with a duration of %d seconds [%s].' %
                      (duration, video_settings))
         with picamera.PiCamera() as camera:
             camera.resolution = video_settings[:2]
@@ -257,7 +257,8 @@ class InternalCamera(object):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
+    utility.check_and_initialize_USB()
     # Initialize GPS subprocess or thread
     p = mp.Process(target=gps_info.update_gps_info,
                    args=(timestamp, altitude, latitude, longitude,

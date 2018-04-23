@@ -110,11 +110,7 @@ def get_info(uart, baudrate, nmea_logger=None):
                 return msg, date
 
 
-#def update_gps_info(timestamp, altitude, latitude, longitude, course,
-#                    speed, continue_gps, longitude_outdated, latitude_outdated,
-#                    gps_logger, nmea_logger):
-
-def update_gps_info(gps_logger, nmea_logger):
+def update_gps_info(gps_logger=None, nmea_logger=None):
     """This function continuously updates the shared memory variables
     for GPS data and is meant to run as a child process.
     It also writes a GPS position log file.
@@ -122,13 +118,13 @@ def update_gps_info(gps_logger, nmea_logger):
     It stops once the shared memory variable continue_gps contains 0.
 
     Args:
-TODO
-        timestamp, altitude, latitude, longitude - shared memory variables
         gps_logger: A logger object for the GPS data. Disabled if None.
         nmea_logger: A logger object for the raw NMEA data. Disabled if None.
     """
+
+    last_time_update = time.time() - 31  # -31 means to force initial update
+
     while continue_gps.value:
-        logging.info('continue_gps.value: %s' % continue_gps.value)
         gps_data, datestamp = get_info(
             config.GPS_SERIAL_PORT, config.GPS_SERIAL_PORT_BAUDRATE,
             nmea_logger=nmea_logger)
@@ -138,14 +134,17 @@ TODO
                     + str(gps_data.timestamp) + "Z"
             else:
                 timestamp.value = str(gps_data.timestamp)
-            try:
-                # os.system("sudo date --set '%s' > /dev/null 2>&1" %
-                os.system("sudo date --set '%s' > /dev/null" %
-                          timestamp.value)
-                logging.debug('System time updated from GPS.')
-            except Exception as msg_time:
-                logging.error('Could not set the system time.')
-                logging.exception(msg_time)
+            if time.time() > last_time_update + 30:
+                last_time_update = time.time()
+                # Update system time only twice per minute (ca.)
+                try:
+                    # os.system("sudo date --set '%s' > /dev/null 2>&1" %
+                    os.system("sudo date --set '%s' > /dev/null" %
+                              timestamp.value)
+                    logging.debug('System time updated from GPS.')
+                except Exception as msg_time:
+                    logging.error('Could not set the system time.')
+                    logging.exception(msg_time)
         except Exception as msg:
             timestamp.value = "01-01-1970T00:00:00Z"
             logging.exception(msg)
@@ -197,6 +196,7 @@ TODO
 
 
 if __name__ == '__main__':
+    global continue_gps
     logging.basicConfig(level=logging.DEBUG)
     utility.check_and_initialize_USB()
     gps_handler = logging.FileHandler(config.USB_DIR + config.DATA_DIR +
@@ -224,18 +224,19 @@ if __name__ == '__main__':
                    args=(gps_logger, nmea_logger))
     p.start()
     # Wait for valid GPS position and time, and sync time
-#    logging.info('Waiting for valid initial GPS position.')
-#    while longitude_outdated.value > 0 or latitude_outdated.value > 0:
-#        time.sleep(1)
+    logging.info('Waiting for valid initial GPS position.')
+    while longitude_outdated.value > 0 or latitude_outdated.value > 0:
+        time.sleep(1)
     logging.info('Now reading GPS info from shared memory.')
-    for i in range(5):
+    for i in range(12):
         logging.info('GPS: lat=%f %s, long=%f %s, alt=%fm, timestamp: %s' %
                      (latitude.value, latitude_direction.value,
                       longitude.value, longitude_direction.value,
                       altitude.value, timestamp.value))
         time.sleep(3)
+    logging.info('Terminating GPS thread. Please wait.')
     continue_gps.value = 0
-    time.sleep(1)
+    time.sleep(4)
     p.terminate()
     p.join()
     logging.info('Goodbye.')

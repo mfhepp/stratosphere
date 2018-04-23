@@ -13,7 +13,6 @@ import logging
 import os
 import subprocess
 import config
-import PIL
 from PIL import Image, ImageOps, ImageDraw, ImageFont
 
 
@@ -139,7 +138,7 @@ if __name__ == "__main__":
         print 'Transmitting audio message.'
         status = transceiver.transmit_audio_file(
             config.SSTV_FREQUENCY,
-            ['files/beacon-english.wav'],
+            [config.AUDIO_BEACON],
             full_power=False)
         print 'Status: %s' % status
         raw_input('Press ENTER to start SSTV transmission.')
@@ -147,7 +146,7 @@ if __name__ == "__main__":
         status = send_sstv(
             transceiver,
             config.SSTV_FREQUENCY,
-            'files/sstv-testbild-small.png',
+            config.SSTV_TEST_IMAGE,
             protocol=config.SSTV_MODE)
         print 'Status: %s' % status
         raw_input('Press ENTER to take still image.')
@@ -162,6 +161,8 @@ if __name__ == "__main__":
         print config.CALLSIGN
         text_field.text((10, 10), config.MISSION_TEXT, font=font)
         image.save(fn_sstv)
+        print 'Showing SSTV image preview. Press ESC to proceed.'
+        os.system('sudo fbi -a %s' % fn_sstv)
         print 'Starting SSTV transmission.'
         status = send_sstv(
             transceiver,

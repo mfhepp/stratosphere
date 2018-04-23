@@ -30,6 +30,7 @@ AUDIO_SELFTEST_START = 'files/selftest-start.wav'
 AUDIO_SELFTEST_OK = 'files/selftest-ok.wav'
 AUDIO_SELFTEST_FAILED = 'files/selftest-failed.wav'
 AUDIO_APRS_TEST_SIGNAL = 'files/aprs-1200hz-2200hz-6db.wav'
+SSTV_TEST_IMAGE = 'files/sstv-testbild-small.png'
 
 # GPS
 GPS_SERIAL_PORT = "/dev/ttyUSB0"  # just an example
