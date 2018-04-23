@@ -96,9 +96,11 @@ def get_info(uart, baudrate, nmea_logger=None):
         while True:
             line = ser.readline()
             if nmea_logger is not None:
-                nmea_logger.debug('NMEA: %s' % line.strip())
+                nmea_logger.debug('NMEA: %s, %s' % (
+                    datetime.datetime.utcnow().isoformat(), line.strip()))
             else:
-                logging.debug('NMEA: %s' % line.strip())
+                logging.debug('NMEA: %s, %s' % (
+                    datetime.datetime.utcnow().isoformat(), line.strip()))
             if line.startswith("$GPRMC"):
                 msg = pynmea2.parse(line)
                 date = msg.datestamp
