@@ -19,12 +19,12 @@ VIDEO_TEXT = 'High-Altitude Balloon Mission DL0UBW, UniBwM \
 COPYRIGHT_TEXT = 'Copyright (c) 2018 Universitaet der Bundeswehr Muenchen'
 
 # Directories and filenames
-USB_DIR = "/media/usbstick"  # Mounting point of the external USB stick
+USB_DIR = "/media/usbstick/"  # Mounting point of the external USB stick
 DISK_SPACE_MINIMUM = 16 * 1024 * 1024 * 1024  # 16 GB
-LOGFILE_DIR = "/logfiles/"
-VIDEO_DIR = "/videos/"
-IMAGE_DIR = "/still_images/"
-DATA_DIR = "/data/"
+LOGFILE_DIR = "logfiles/"
+VIDEO_DIR = "videos/"
+IMAGE_DIR = "still_images/"
+DATA_DIR = "data/"
 AUDIO_BEACON = "files/beacon-english.wav"
 AUDIO_SELFTEST_START = 'files/selftest-start.wav'
 AUDIO_SELFTEST_OK = 'files/selftest-ok.wav'

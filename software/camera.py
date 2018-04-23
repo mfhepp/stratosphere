@@ -260,9 +260,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     utility.check_and_initialize_USB()
     # Initialize GPS subprocess or thread
-    p = mp.Process(target=gps_info.update_gps_info,
-                   args=(timestamp, altitude, latitude, longitude,
-                         None, None))
+    p = mp.Process(target=gps_info.update_gps_info, args=(None, None))
     p.start()
     # Wait for valid GPS position and time, and sync time
     logging.info('Waiting for valid initial GPS position.')
@@ -271,80 +269,17 @@ if __name__ == "__main__":
     logging.info('Valid GPS position received.')
     logging.info('Now testing camera modules.')
     try:
-        """cam_top = ExternalCamera(
-            config.CAM1_PWR,
-            config.CAM1_REC,
-            config.CAM1_STATUS)
-        status_ok = cam_top.start_recording()
-        if status_ok:
-            logging.info('Top camera recording started.')
-        else:
-            logging.error('Problem: Top camera recording already running.')
-        for i in range(60):
-            if cam_top.get_recording_status():
-                logging.info('Top camera recording acknowledgment received.')
-                break
-            logging.info('Waiting for top camera recording acknowledgment' +
-                         ' (%i).' % i)
-            time.sleep(1)
-        else:
-            logging.error('Problem: Top camera recording did not start.')
-
-        cam_bottom = ExternalCamera(
-            config.CAM2_PWR,
-            config.CAM2_REC,
-            config.CAM2_STATUS)
-        status_ok = cam_bottom.start_recording()
-        if status_ok:
-            logging.info('Bottom camera recording started.')
-        else:
-            logging.error('Problem: Bottom camera recording already running.')
-        for i in range(60):
-            if cam_bottom.get_recording_status():
-                logging.info(
-                    'Bottom camera recording acknowledgment received.')
-                break
-            logging.info('Waiting for bottom camera recording acknowledgment' +
-                         ' (%i).' % i)
-            time.sleep(1)
-        else:
-            logging.error('Problem: Bottom camera recording did not start.')
-"""
+        # External cameras must be started manually!
         logging.info('Starting main camera recording, d = 10 sec.')
         fn = InternalCamera.video_recording(duration=10, preview=True)
         logging.info('Main camera recording saved to %s.' % fn)
         logging.info('Main camera still image capture started.')
         fn = InternalCamera.take_snapshot()
         logging.info('Main camera still image saved to %s.' % fn)
-        logging.info('Turning off top camera.')
-        # cam_top.stop_recording()
-        """for i in range(60):
-            if not cam_top.get_recording_status():
-                logging.info('Top camera stop acknowledgment received.')
-                break
-            logging.info('Waiting for top camera stop acknowledgment' +
-                         ' (%i).' % i)
-            time.sleep(1)
-        else:
-            logging.error('Problem: Top camera recording did not stop.')
-        logging.info('Turning off bottom camera.')
-        cam_bottom.stop_recording()
-        for i in range(60):
-            if not cam_bottom.get_recording_status():
-                logging.info('Bottom camera stop acknowledgment received.')
-                break
-            logging.info('Waiting for bottom camera stop acknowledgment' +
-                         ' (%i).' % i)
-            time.sleep(1)
-        else:
-            logging.error('Problem: Bottom camera recording did not stop.')"""
         logging.info('Testing camera modules completed.')
     finally:
         p.terminate()
         p.join()
-        # cam_top.power_on_off()
-        # cam_top.power_on_off()
-        logging.info('Please wait 2 minutes before turning off power for safe camera unit power-down.')
         logging.info('Bye.')
 
 

@@ -199,19 +199,18 @@ if __name__ == '__main__':
     global continue_gps
     logging.basicConfig(level=logging.DEBUG)
     utility.check_and_initialize_USB()
-    gps_handler = logging.FileHandler(config.USB_DIR + config.DATA_DIR +
-                                      'gps.csv')
+    gps_fn = os.path.join(config.USB_DIR + config.DATA_DIR + 'gps.csv')
+    gps_handler = logging.FileHandler(gps_fn)
     gps_logger = logging.getLogger('gps')
     gps_logger.setLevel(logging.DEBUG)
     gps_logger.addHandler(gps_handler)
     gps_logger.propagate = False
-    nmea_handler = logging.FileHandler(config.USB_DIR + config.DATA_DIR +
-                                       'nmea.csv')
+    nmea_fn = os.path.join(config.USB_DIR + config.DATA_DIR + 'nmea.csv')
+    nmea_handler = logging.FileHandler(nmea_fn)
     nmea_logger = logging.getLogger('nmea')
     nmea_logger.setLevel(logging.DEBUG)
     nmea_logger.addHandler(nmea_handler)
     nmea_logger.propagate = False
-
     uart = config.GPS_SERIAL_PORT
     baudrate = config.GPS_SERIAL_PORT_BAUDRATE
     logging.info('GPS found at %s with %i baud' % (uart, baudrate))

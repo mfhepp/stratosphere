@@ -36,7 +36,8 @@ def check_and_initialize_USB():
     """Checks and initializes the USB media."""
     # Test if USB stick is writeable
     try:
-        filehandle = open(config.USB_DIR + '/test.txt', 'w')
+        fn = os.path.join(config.USB_DIR + 'test.txt')
+        filehandle = open(fn, 'w')
         filehandle.close()
     except IOError:
         # This will only be shown on the screen
@@ -44,7 +45,7 @@ def check_and_initialize_USB():
         logging.info('Trying to mount USB media.')
         try:
             os.system("sudo ./shell/detect_and_mount_usb.sh")
-            filehandle = open(config.USB_DIR + '/test.txt', 'w')
+            filehandle = open(fn, 'w')
             filehandle.close()
         except Exception as msg_time:
             logging.critical('FATAL: Could not mount USB media.')
@@ -63,13 +64,12 @@ def check_and_initialize_USB():
                 config.VIDEO_DIR,
                 config.IMAGE_DIR,
                 config.DATA_DIR]:
-            if not os.path.exists(config.USB_DIR + folder):
-                os.makedirs(config.USB_DIR + folder)
-                logging.info('Created directory %s' %
-                             config.USB_DIR + folder)
+            path_string = os.path.join(config.USB_DIR + folder)
+            if not os.path.exists(path_string):
+                os.makedirs(path_string)
+                logging.info('Created directory %s' % path_string)
             else:
-                logging.info('Found directory %s' %
-                             config.USB_DIR + folder)
+                logging.info('Found directory %s' % path_string)
     except Exception as msg_time:
         logging.error('FATAL: Could not create directories.')
         logging.exception(msg_time)
