@@ -4,10 +4,10 @@
 # sstv.py
 # All routines for generating and transmitting SSTV images
 #
+# $ sudo apt-get update
 # $ git clone https://github.com/hatsunearu/pisstvpp
 # $ sudo apt-get install build-essential libgd-dev libmagic-dev
 # $ make make pisstvpp  (in the directory where PiSSTV resides in)
-# $
 
 import logging
 import os
@@ -161,8 +161,6 @@ if __name__ == "__main__":
         print config.CALLSIGN
         text_field.text((10, 10), config.MISSION_TEXT, font=font)
         image.save(fn_sstv)
-        print 'Showing SSTV image preview. Press ESC to proceed.'
-        os.system('sudo fbi -a %s' % fn_sstv)
         print 'Starting SSTV transmission.'
         status = send_sstv(
             transceiver,
