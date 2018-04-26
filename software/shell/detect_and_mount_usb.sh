@@ -18,10 +18,14 @@ do
     if [ "$size" -gt "30000000000" ]
     then
        echo $volume" is bigger"
-       mount -t vfat -o uid=pi -o gid=pi $volume /media/usbstick
+       # For FAT volumes use
+       # mount -t vfat -o uid=pi -o gid=pi $volume /media/usbstick
+       # For ext4 volumes, use the following TWO lines
+       mount -t ext4 $volume /media/usbstick
+       chown pi /media/usbstick
        if mount | grep $volume > /dev/null
        then
 	   echo $volume" has been mounted"
        fi
-    fi       
+    fi
 done
