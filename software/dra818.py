@@ -33,7 +33,7 @@ def send_command(serial_connection, command):
     serial_connection.write(command)
     logging.info('Transceiver command sent: %s' % command.strip())
     tx_response = serial_connection.readline().strip()
-    logging.info('Transceiver response: %s' % tx_response.strip())
+    logging.info('Transceiver response stripped: %s' % tx_response)
     return tx_response
 
 
@@ -218,9 +218,11 @@ class DRA818(object):
                            parity=serial.PARITY_NONE,
                            stopbits=serial.STOPBITS_ONE,
                            timeout=1) as dra818_uart:
-            dra818_uart.reset_output_buffer()
-            dra818_uart.reset_input_buffer()
-            time.sleep(1)
+#            time.sleep(2)
+#            dra818_uart.reset_output_buffer()
+#            time.sleep(2)
+#            dra818_uart.reset_input_buffer()
+#            time.sleep(2)
             # GROUP SETTING Command
             # T+DMOSETGROUP=GBW,TFV, RFV,Tx_CTCSS,SQ,Rx_CTCSS<CR><LF>
             command = 'AT+DMOSETGROUP=1,%3.4f,%3.4f,0000,%i,0000\r\n' \
@@ -252,9 +254,11 @@ class DRA818(object):
                            parity=serial.PARITY_NONE,
                            stopbits=serial.STOPBITS_ONE,
                            timeout=1) as dra818_uart:
+            time.sleep(2)
             dra818_uart.reset_output_buffer()
+            time.sleep(2)
             dra818_uart.reset_input_buffer()
-            time.sleep(1)
+            time.sleep(2)
             # GROUP SETTING Command
             # T+DMOSETGROUP=GBW,TFV, RFV,Tx_CTCSS,SQ,Rx_CTCSS<CR><LF>
             command = 'AT+DMOSETGROUP=1,%3.4f,%3.4f,0000,%i,0000\r\n' \
@@ -287,9 +291,11 @@ class DRA818(object):
                            parity=serial.PARITY_NONE,
                            stopbits=serial.STOPBITS_ONE,
                            timeout=1) as dra818_uart:
+            time.sleep(2)
             dra818_uart.reset_output_buffer()
+            time.sleep(2)
             dra818_uart.reset_input_buffer()
-            time.sleep(1)
+            time.sleep(2)
             # GROUP SETTING Command
             # T+DMOSETGROUP=GBW,TFV, RFV,Tx_CTCSS,SQ,Rx_CTCSS<CR><LF>
             command = 'AT+DMOSETGROUP=1,%3.4f,%3.4f,0000,%i,0000\r\n' \
@@ -332,9 +338,11 @@ class DRA818(object):
                            parity=serial.PARITY_NONE,
                            stopbits=serial.STOPBITS_ONE,
                            timeout=1) as dra818_uart:
+            time.sleep(2)
             dra818_uart.reset_output_buffer()
+            time.sleep(2)
             dra818_uart.reset_input_buffer()
-            time.sleep(1)
+            time.sleep(2)
             # Note: On = 0, Off = 0, so we use int(not <boolean>)
             command = 'AT+SETFILTER=%1i,%1i,%1i\r\n' \
                       % (int(not pre_emphasis),
@@ -369,21 +377,25 @@ class DRA818(object):
             False: Transmission failed.
         """
         try:
-            if self.set_tx_frequency(frequency):
-                self.start_transmitter(full_power=full_power)
-                time.sleep(1)
-                status = True
-                logging.debug('WAV list: %s' % audio_files)
-                for audio_file_path in audio_files:
-                    logging.debug('WAV path: %s' % audio_file_path)
-                    status = status and _play_audio_file(audio_file_path)
-                time.sleep(0.3)
-                self.stop_transmitter()
+            for i in range(10):
+                if self.set_tx_frequency(frequency):
+                    break
+                else:
+                    time.sleep(0.5)
             else:
                 return False
-            return status
+            self.start_transmitter(full_power=full_power)
+            time.sleep(0.7)
+            status = True
+            logging.debug('WAV list: %s' % audio_files)
+            for audio_file_path in audio_files:
+                logging.debug('WAV path: %s' % audio_file_path)
+                status = status and _play_audio_file(audio_file_path)
+            time.sleep(0.3)
+            self.stop_transmitter()
         finally:
             self.stop_transmitter()
+        return status
 
 
 if __name__ == '__main__':

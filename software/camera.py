@@ -74,10 +74,10 @@ class ExternalCamera(object):
                    initial=GPIO.HIGH)
         GPIO.setup(camera_recording_status_pin, GPIO.IN,
                    pull_up_down=GPIO.PUD_UP)
-        logging.info('Camera unit attached to pins (%i, %i, %i).' %
-                     (camera_power_on_off_pin,
-                      camera_record_start_stop_pin,
-                      camera_recording_status_pin))
+        logging.info('Camera unit attached to pins CAM_PWR:%i CAM_REC:%i\
+ CAM_STATUS:%i.' % (camera_power_on_off_pin,
+                    camera_record_start_stop_pin,
+                    camera_recording_status_pin))
 
     def power_on_off(self):
         """Shutdown or restart the unit.

@@ -37,7 +37,7 @@ GPS_SERIAL_PORT = "/dev/ttyUSB0"  # just an example
 GPS_SERIAL_PORT_BAUDRATE = 9600  # just an example
 GPS_POLLTIME = 0.1  # in seconds
 GPS_OBFUSCATION = True
-GPS_OBFUSCATION_DELTA = {'lat': 0.5, 'lon': 0.5}
+GPS_OBFUSCATION_DELTA = {'lat': 0.25, 'lon': -0.35}
 # GPS_ALTITUDE_MODE_CEILING = 10000
 # Altitude at which GPS will be switched to Airborne-6 mode
 # with <1g Acceleration; TBD
@@ -140,12 +140,15 @@ SPARE_STATUS_LED_PIN = 24  # GPIO8
 MAIN_CAM_STATUS_LED = 26  # GPIO07
 
 
-CAM1_PWR = 11  # GPIO17
-CAM1_REC = 13  # GPIO13
+# documentation says:
+CAM1_PWR = 11  # GPIO27 OK
+## ?????
+CAM1_REC = 13  # GPIO17
+# ?????
 CAM1_STATUS = 12  # GPIO18
 
 CAM2_PWR = 15  # GPIO22
-CAM2_REC = 18  # GPIO14
+CAM2_REC = 18  # GPIO24
 CAM2_STATUS = 16  # GPIO23
 
 # GPIO and UART configuration for DORJI DRA818V transceiver module

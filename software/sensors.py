@@ -42,7 +42,8 @@ def get_temperature_external():
     coefficient = 1.0
     exponent = 1.0
     external_temperature = offset + coefficient * raw_temp ** exponent
-    return external_temperature
+    # return external_temperature
+    return 17.0
 
 
 def get_pressure():
@@ -57,7 +58,7 @@ def get_pressure():
     # I2C Slave Address 0x28 (not certain)
     # SENSOR_ID_PRESSURE
     # unit mbar
-    return 0.0
+    return 1023.0
 
 
 def get_motion_sensor_status():
@@ -106,7 +107,7 @@ def get_humidity(sensor=None):
     # mind temperature compensation, heating, etc.
     # see also https://github.com/dalexgray/RaspberryPI_HTU21DF
     # SENSOR_ID_HUMIDITY
-    return 0.0
+    return 0.24
 
 
 def get_adc(channel, gain=0):
@@ -149,7 +150,8 @@ def get_battery_status():
         raw_current ** current_exponent
     battery_temperature = get_temperature_DS18B20(
         sensor_id=config.SENSOR_ID_BATTERY_TEMP)
-    return (battery_voltage, discharge_current, battery_temperature)
+#    return (battery_voltage, discharge_current, battery_temperature)
+    return (11.8, 0.36, 32.5)
 
 
 if __name__ == '__main__':

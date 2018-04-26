@@ -24,9 +24,37 @@ import dra818
 import gps_info
 import subprocess
 import RPi.GPIO as GPIO
-import random
+import pickle
 
-sequence_number = 1113
+
+def init_sequence_number():
+    """Tries to load the most recent sequence number from disk.
+
+    The APRS telemetry sequence number must be incremented if
+    there was a test transmission on the same day. Otherwise, aprs.fi
+    will reject the packets."""
+    sequence_number = 0
+    try:
+        fn1 = os.path.join(config.USB_DIR, 'sequence_number.dat')
+        if not os.path.exists(fn1):
+            return 0
+        logging.debug('Reading %s' % fn1)
+        with open(fn1, 'rb') as pickle_handler:
+            sequence_number = pickle.load(pickle_handler)
+    except Exception as msg:
+        logging.exception(msg)
+        sequence_number = 0
+
+    if sequence_number is None or sequence_number < 0 or \
+            sequence_number > 8000:
+        sequence_number = 0
+        try:
+            fn1 = os.path.join(config.USB_DIR, 'sequence_number.dat')
+            with open(fn1, 'wb') as pickle_handler:
+                pickle.dump(sequence_number, pickle_handler)
+        except Exception as msg:
+            logging.exception(msg)
+    return sequence_number
 
 
 def timestamp_hms():
@@ -112,6 +140,25 @@ def send_aprs(transceiver, aprs_info, frequency=config.APRS_FREQUENCY,
         True: Transmission successful.
         False: Transmission failed.
     """
+
+    """
+    new
+    import afsk
+
+    packet = afsk.ax25.UI(
+            destination=args.destination,
+            source=args.callsign,
+            info=args.info,
+            digipeaters=args.digipeaters.split(b','),
+        )
+    audio = afsk.encode(packet.unparse())
+    with open(args.output, 'wb') as f:
+                audiogen.sampler.write_wav(f, audio)
+
+    maybe todo: try https://docs.python.org/2/library/stringio.html
+
+    """
+
     try:
         # See https://github.com/casebeer/afsk
         if aprs_destination:
@@ -154,7 +201,8 @@ def send_aprs(transceiver, aprs_info, frequency=config.APRS_FREQUENCY,
         # When converting APRS string to audio using Bell 202, mind the
         # pre-emphasis problems, see pre-emphasis settings, see also
         # http://www.febo.com/packet/layer-one/transmit.html
-        transceiver.set_filters(pre_emphasis=config.PRE_EMPHASIS)
+        # but this is already done:
+        # transceiver.set_filters(pre_emphasis=config.PRE_EMPHASIS)
         # TODO: Think about software-based volume / modulation control
         # maybe using ALSA via Python wrapper, see e.g.
         # http://larsimmisch.github.io/pyalsaaudio/pyalsaaudio.html#alsa-and-python
@@ -258,23 +306,22 @@ def generate_aprs_position(telemetry=False):
         # Channel 5: Battery voltage 0.0 - 15 V -> multiply by 256
         voltage = int(battery_voltage.value * 256)
 
-# TODO
-        atm = random.randint(0, 8000)
-        t_int = random.randint(0, 8000)
-        t_ext = random.randint(0, 8000)
-        humidity = random.randint(0, 8000)
-        voltage = random.randint(0, 8000)
-# TEST
         sequence_number = (sequence_number + 1) & 0x1FFF
         logging.info('Sequence number: %i, %s' % (sequence_number,
                      convert_decimal_to_base91(sequence_number)))
+        try:
+            fn1 = os.path.join(config.USB_DIR, 'sequence_number.dat')
+            with open(fn1, 'wb') as pickle_handler:
+                pickle.dump(sequence_number, pickle_handler)
+        except Exception as msg:
+            logging.exception(msg)
         comment = b'|%s%s%s%s%s%s|' % (
-            convert_decimal_to_base91(sequence_number),
-            convert_decimal_to_base91(atm),
-            convert_decimal_to_base91(t_int),
-            convert_decimal_to_base91(t_ext),
-            convert_decimal_to_base91(humidity),
-            convert_decimal_to_base91(voltage))
+            convert_decimal_to_base91(sequence_number, width=2),
+            convert_decimal_to_base91(atm, width=2),
+            convert_decimal_to_base91(t_int, width=2),
+            convert_decimal_to_base91(t_ext, width=2),
+            convert_decimal_to_base91(humidity, width=2),
+            convert_decimal_to_base91(voltage, width=2))
     else:
         comment = "B_U=%2.2f B_T=%2.2f" % (
             battery_voltage.value, battery_temp.value)
@@ -329,8 +376,9 @@ def generate_aprs_telemetry_definition(target_station=config.APRS_SSID):
 
 
 if __name__ == '__main__':
+    global sequence_number
     logging.basicConfig(level=logging.DEBUG)
-    # Fetching single valid GPS positiobn
+    # Fetching single valid GPS position
     uart = config.GPS_SERIAL_PORT
     baudrate = config.GPS_SERIAL_PORT_BAUDRATE
     logging.info('GPS found at %s with %i baud' % (uart, baudrate))
@@ -345,10 +393,9 @@ if __name__ == '__main__':
     logging.info('Testing APRS functions.')
     import aprslib
     logging.info('Now generating and parsing APRS messages.')
+    sequence_number = init_sequence_number()
     aprs_strings = [_compose_message(message) for message in [
         generate_aprs_position(), generate_aprs_position(telemetry=True)]]
-    # On-air definition of telemetry parameters must be addressed to SSID
-    # of the telemetry sending station, see p- 68 of APRS 1.0 spec.
     aprs_strings.extend([_compose_message(message) for message in
                          generate_aprs_telemetry_definition()])
     try:
@@ -371,16 +418,20 @@ if __name__ == '__main__':
         squelch_level=1)
     raw_input('Press ENTER to start APRS transmission [CTRL-C for exit].')
     logging.info('Sending four telemetry definition messages.')
-    # status = send_telemetry_definitions(transceiver, full_power=True)
-    # logging.info('Transmission status: %s' % status)
-    raw_input('Press ENTER to for next transmission [CTRL-C for exit].')
-    logging.info('Sending position report with telemetry.')
-    status = send_aprs(transceiver, generate_aprs_position(telemetry=True))
+    status = send_telemetry_definitions(transceiver, full_power=True)
     logging.info('Transmission status: %s' % status)
     while True:
         try:
             raw_input('Press ENTER to for next transmission' +
                       ' [CTRL-C for exit].')
+            # Test, now more stable
+            transceiver = dra818.DRA818(
+                uart=config.SERIAL_PORT_TRANSCEIVER,
+                ptt_pin=config.DRA818_PTT,
+                power_down_pin=config.DRA818_PD,
+                rf_power_level_pin=config.DRA818_HL,
+                frequency=config.APRS_FREQUENCY,
+                squelch_level=1)
             logging.info('Sending position report with telemetry.')
             status = send_aprs(transceiver,
                                generate_aprs_position(telemetry=True),
