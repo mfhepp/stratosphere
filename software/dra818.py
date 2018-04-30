@@ -385,13 +385,13 @@ class DRA818(object):
             else:
                 return False
             self.start_transmitter(full_power=full_power)
-            time.sleep(0.7)
+            time.sleep(1)
             status = True
             logging.debug('WAV list: %s' % audio_files)
             for audio_file_path in audio_files:
                 logging.debug('WAV path: %s' % audio_file_path)
                 status = status and _play_audio_file(audio_file_path)
-            time.sleep(0.3)
+            time.sleep(1)
             self.stop_transmitter()
         finally:
             self.stop_transmitter()

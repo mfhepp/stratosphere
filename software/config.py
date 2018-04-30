@@ -9,7 +9,7 @@ import RPi.GPIO as GPIO
 DEBUG = True
 POLL_FREQUENCY = 1  # Sensor poll frequency in Hz
 CALLSIGN = 'DL0UBW'  # insert your mission callsign
-APRS_SSID = CALLSIGN + '-6'
+APRS_SSID = CALLSIGN + '-11'  # n'-6'
 MISSION_TEXT = 'High-Altitude Balloon \nMission STRATOSPHERE 2018\n' + CALLSIGN
 APRS_COMMENT = 'UniBwM Balloon 2018'
 IMAGE_TEXT = 'High-Altitude Balloon Mission DL0UBW, UniBwM \
@@ -99,7 +99,8 @@ SQUELCH = 0  # Squelch level 0-8
 # Will save power to be set to 8 in altitude but useful at 0 for debugging
 APRS_ON = True
 APRS_FREQUENCY = 144.800
-APRS_PATH = "WIDE2-1"  # http://www.arhab.org/aprs
+# should be APRS_PATH = "WIDE2-1"  # http://www.arhab.org/aprs
+APRS_PATH = 'WIDE1-1,WIDE2-1'
 APRS_SEQUENCE = 0  # Initial APRS sequency ID
 SSTV_ON = True
 SSTV_FREQUENCY = 145.200  # Warning: This requires permission from BNetzA.

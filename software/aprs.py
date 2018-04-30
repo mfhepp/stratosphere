@@ -46,7 +46,7 @@ def init_sequence_number():
         sequence_number = 0
 
     if sequence_number is None or sequence_number < 0 or \
-            sequence_number > 8000:
+            sequence_number > 8191:
         sequence_number = 0
         try:
             fn1 = os.path.join(config.USB_DIR, 'sequence_number.dat')
