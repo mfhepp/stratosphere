@@ -7,10 +7,21 @@
 # tbd: super-robust error handling
 # i2c docs e.g. from
 # http://www.raspberry-projects.com/pi/programming-in-python/i2c-programming-in-python/using-the-i2c-interface-2
-
+#
+# BME280
+# $ sudo apt-get update
+# $ sudo apt-get install build-essential python-pip python-dev python-smbus git
+# $ git clone https://github.com/adafruit/Adafruit_Python_GPIO.git
+# $ cd Adafruit_Python_GPIO
+# $ sudo python setup.py install
+# $ cd ..
+# $ git clone https://github.com/adafruit/Adafruit_Python_BME280.git
+# $ cd Adafruit_Python_BME280/
+# $ sudo python setup.py install
 import logging
 from subprocess import PIPE, Popen
 from w1thermsensor import W1ThermSensor
+import Adafruit_BME280
 import config
 import time
 
@@ -46,20 +57,54 @@ def get_temperature_external():
     return 17.0
 
 
-def get_pressure():
-    """Returns the pressure from the AP40N-200KG-Stick pressure sensor"""
-    # see http://shop.pewatron.com/search/ap40r-200kg-stick-drucksensor.
-    # for BMP180, see
-    # https://github.com/adafruit/Adafruit_Python_BMP
-    # and
-    # http://www.cs.unca.edu/~brock/classes/Spring2014/csci320/labs/csci320/bmp180json.py
-    # and
-    # http://www.raspberrypi-spy.co.uk/2015/04/bmp180-i2c-digital-barometric-pressure-sensor/
-    # I2C Slave Address 0x28 (not certain)
-    # SENSOR_ID_PRESSURE
-    # unit mbar
-    return 1023.0
+def get_pressure_internal_humidity():
+    """Returns the atmospheric pressure and the internal relative humidity
+    from the BME280 sensor.
 
+    We use this sensor breakout board:
+        http://www.watterott.com/index.php?page=product&info=4329
+    and this library:
+        https://github.com/adafruit/Adafruit_Python_BME280
+
+    Pressure range 300 … 1100 hPa
+        (equiv. to +9000…-500 m above/below sea level)
+    Relative accuracy ±0.12 hPa, equiv. to ±1 m (950 … 1050hPa @25°C)
+    Absolute accuracy typ. ±1 hPa (950 ...1050 hPa, 0 ...+40 °C)
+
+    Returns:
+        (pressure (float), humidity(float))
+        pressure: The atmospheric pressure in hectopascals (hPa)
+        humidity: The relative humidity in percent (0..1)
+    """
+    sensor = Adafruit_BME280.BME280(
+        t_mode=Adafruit_BME280.BME280_OSAMPLE_8,
+        p_mode=Adafruit_BME280.BME280_OSAMPLE_8,
+        h_mode=Adafruit_BME280.BME280_OSAMPLE_8,
+        address=config.SENSOR_ID_PRESSURE)
+
+    # For strange reasons, the library expects reading (1) all three values
+    # (2) in the exact order as shown below, even though we just need
+    # two of them.
+    degrees = sensor.read_temperature()
+    pascals = sensor.read_pressure()
+    hectopascals = pascals / 100
+    humidity = sensor.read_humidity() / 100.0
+    return hectopascals, humidity
+
+
+def get_humidity_external(sensor=None):
+    """Returns data from the HTU21D humidity sensor outside
+    the probe in percent (1 = 100 %, 0.1 = 10 %)."""
+    # see http://www.exp-tech.de/sparkfun-feuchtesensor-breakout-htu21d
+    # I2C
+    # library in case we use Si7006-A20 Temperature and Humidity sensor
+    # instead:
+    #     https://github.com/automote/Si7006
+    # mind temperature compensation, heating, etc.
+    # see also https://github.com/dalexgray/RaspberryPI_HTU21DF
+    # SENSOR_ID_HUMIDITY
+
+    return 0.24
 
 def get_motion_sensor_status():
     '''Tests motions sensor'''
@@ -96,18 +141,7 @@ def get_motion_data():
     return {}
 
 
-def get_humidity(sensor=None):
-    """Returns data from the HTU21D humidity sensors inside and outside
-    the probe in percent (1 = 100 %, 0.1 = 10 %)"""
-    # see http://www.exp-tech.de/sparkfun-feuchtesensor-breakout-htu21d
-    # I2C
-    # library in case we use Si7006-A20 Temperature and Humidity sensor
-    # instead:
-    #     https://github.com/automote/Si7006
-    # mind temperature compensation, heating, etc.
-    # see also https://github.com/dalexgray/RaspberryPI_HTU21DF
-    # SENSOR_ID_HUMIDITY
-    return 0.24
+
 
 
 def get_adc(channel, gain=0):
@@ -167,11 +201,10 @@ if __name__ == '__main__':
     logging.info('Battery temperature: %f °C' % get_temperature_DS18B20(
         sensor_id=config.SENSOR_ID_BATTERY_TEMP))
     logging.info('CPU temperature: %f °C' % get_temperature_cpu())
-    logging.info('Humidity internal: %f' % get_humidity(
-        sensor=config.SENSOR_ID_HUMIDITY_INT))
-    logging.info('Humidity external: %f' % get_humidity(
-        sensor=config.SENSOR_ID_HUMIDITY_EXT))
-    logging.info('Atmospheric pressure: %f' % get_pressure())
+    pressure, humidity_internal = get_pressure_internal_humidity()
+    logging.info('Humidity internal: %f %%' % (humidity_internal * 100))
+    logging.info('Atmospheric pressure: %f hPa' % pressure)
+    logging.info('Humidity external: %f' % get_humidity_external())
     u, i, t = get_battery_status()
     logging.info('Battery status: U=%fV, I=%fA, T=%f°C' % (u, i, t))
     a, b = get_motion_sensor_status()
