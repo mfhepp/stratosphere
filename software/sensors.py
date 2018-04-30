@@ -31,7 +31,8 @@
 # $ git clone https://github.com/adafruit/Adafruit_Python_ADS1x15.git
 # $ cd Adafruit_Python_ADS1x15
 # $ sudo python setup.py install
-
+# IV. IMU
+# $ git clone https://github.com/popedison/LSM9DS1.git
 
 
 import logging
@@ -206,8 +207,10 @@ def get_temperature_external():
     # The realistic range is between 500R and less than 2k, so the
     # voltage range is between 1.1V and 2.048 V.
     # Calibrate & convert
-    # Todo: use proper Steinhart-Hart Formula
+# TODO: use proper Steinhart-Hart Formula
     # https://arduinodiy.wordpress.com/2015/11/10/measuring-temperature-with-ntc-the-steinhart-hart-formula/
+    # https://www.maximintegrated.com/en/app-notes/index.mvp/id/1753
+    # https://www.mouser.de/datasheet/2/187/honeywell-sensing-hel-700-series-thin-film-platinu-1137676.pdf
     raw_voltage = get_adc(
         config.SENSOR_ADC_CHANNEL_EXTERNAL_TEMPERATURE, gain=2)
     # raw_voltage = raw_voltage * 2.048 / 32767.0
