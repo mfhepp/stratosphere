@@ -25,16 +25,23 @@
 # https://drive.google.com/file/d/0B_P-i4u-SLBXb3VlN0N5amVBb1k/view?usp=sharing
 # 2. Copy that file into /boot/overlays.
 # 3. In /boot/config.txt add the line dtoverlay=i2c1-bcm2708 at the end.
-# Then install library:
-# $ git clone https://github.com/jasiek/HTU21D.git
+# III. ADC
+# sudo apt-get install git build-essential python-dev
+# $ cd ~
+# $ git clone https://github.com/adafruit/Adafruit_Python_ADS1x15.git
+# $ cd Adafruit_Python_ADS1x15
+# $ sudo python setup.py install
+
+
 
 import logging
+import config
+import time
 from smbus import SMBus
 from subprocess import PIPE, Popen
 from w1thermsensor import W1ThermSensor
 import Adafruit_BME280
-import config
-import time
+import Adafruit_ADS1x15
 
 
 class HTU21D():
@@ -89,22 +96,6 @@ def get_temperature_DS18B20(sensor_id=''):
     return sensor.get_temperature()
 
 
-def get_temperature_external():
-    """Returns the temperature of the external HEL-712-U-0-12-00 sensor
-    in degree Celsius"""
-    # See
-    # http://www.mouser.de/ProductDetail/Honeywell/HEL-712-U-0-12-00/?qs=%2Ffq2y7sSKcIJdgTbHPcmcA%3D%3D
-    # Calibrate & convert
-    raw_temp = get_adc(config.SENSOR_ADC_CHANNEL_EXTERNAL_TEMPERATURE,
-                       gain=0.0)  # gain tbd
-    offset = 0.0
-    coefficient = 1.0
-    exponent = 1.0
-    external_temperature = offset + coefficient * raw_temp ** exponent
-    # return external_temperature
-    return 17.0
-
-
 def get_pressure_internal_humidity():
     """Returns the atmospheric pressure and the internal relative humidity
     from the BME280 sensor.
@@ -140,19 +131,91 @@ def get_pressure_internal_humidity():
     return hectopascals, humidity
 
 
-def get_humidity_external():
-    """Returns data from the HTU21D humidity sensor outside
-    the probe in percent (1 = 100 %, 0.1 = 10 %)."""
-    # see http://www.exp-tech.de/sparkfun-feuchtesensor-breakout-htu21d
-    # I2C
-    # library in case we use Si7006-A20 Temperature and Humidity sensor
-    # instead:
-    #     https://github.com/automote/Si7006
-    # mind temperature compensation, heating, etc.
-    # see also https://github.com/dalexgray/RaspberryPI_HTU21DF
-    # SENSOR_ID_HUMIDITY
+def get_adc(channel, gain=1):
+    """Returns voltage at from 4-channel ADC ADS115.0
 
-    return 0.24
+    See https://www.adafruit.com/product/1085.
+    Datasheet at http://adafruit.com/datasheets/ads1115.pdf.
+    Library at https://github.com/adafruit/Adafruit_Python_ADS1x15
+    See also
+    https://learn.adafruit.com/raspberry-pi-analog-to-digital-converters/ads1015-slash-ads1115
+    Args:
+        channel(int): The number of the ADC channel (0..3)
+        gain(float): The ADC gain according to the following table:
+            1 for reading voltages from 0 to 4.09V.
+            2/3 = +/-6.144V
+            1 = +/-4.096V
+            2 = +/-2.048V
+            4 = +/-1.024V
+            8 = +/-0.512V
+            16 = +/-0.256V
+        See table 3 in the ADS1015/ADS1115 datasheet for more info on gain.
+    """
+    # Create an ADS1115 ADC (16-bit) instance.
+    adc = Adafruit_ADS1x15.ADS1115(address=config.SENSOR_ID_ADC)
+    return adc.read_adc(channel, gain=gain)
+
+
+def get_battery_status():
+    """Returns  battery status information, i.e.
+    - Voltage in V
+    - Current consumption (before DC-DC converters) in A
+    - Battery temperature (DS18B20)"""
+    # Voltage via simple voltage divider and MCP3204 ADC or directly
+    # via ADS1115 in the form of a
+    # https://www.adafruit.com/product/1085
+    # Current via ACS712/714 + OpAmp + MCP3204 ADC or directly via
+    # ADS1115 in the form of a https://www.adafruit.com/product/1085
+    # TBD calibration, see also
+    # https://cdn-learn.adafruit.com/downloads/pdf/calibrating-sensors.pdf
+    #
+    raw_voltage = get_adc(config.SENSOR_ADC_CHANNEL_BATTERY_VOLTAGE, gain=2)
+    # The voltage is measured through a 10k:1k voltage divider,
+    # so it will be in 1/11th of the actual voltage and thus in the range
+    # from 0V and ca. 1.6 V
+    # convert 16 bit integer to float
+    raw_voltage = raw_voltage * 2.048 / 32767.0
+    # input is just 1/11th of actual voltage
+    # 1.017 is a small correction factor
+    battery_voltage = raw_voltage * 11.0 * 1.017
+    # The current drain from the battery is measured via ACS 712
+    # and a 2.2k : 10k voltage divider.
+    # At 0 A, the voltage is 2.5 V (1/2 of 5V). For each A of current,
+    # this is being increased or decreased by 185 mV.
+    raw_voltage = get_adc(config.SENSOR_ADC_CHANNEL_CURRENT, gain=1)
+    raw_voltage = raw_voltage * 4.096 / 32767.0
+    raw_voltage = raw_voltage * 12.2 / 10  # compensate for voltage divider
+    raw_voltage -= 2.5
+    # The 5A version of the sensor has a sensitivity of 185mV/A
+    discharge_current = raw_voltage / 0.185 * -1
+    # Correction factor
+    # discharge_current = discharge_current * 442 / 495
+    battery_temperature = get_temperature_DS18B20(
+        sensor_id=config.SENSOR_ID_BATTERY_TEMP)
+    return (battery_voltage, discharge_current, battery_temperature)
+
+
+def get_temperature_external():
+    """Returns the temperature of the external HEL-712-U-0-12-00 sensor
+    in degree Celsius"""
+    # See
+    # http://www.mouser.de/ProductDetail/Honeywell/HEL-712-U-0-12-00/?qs=%2Ffq2y7sSKcIJdgTbHPcmcA%3D%3D
+    # The sensor is connected to 3.3V via a 1k resistor.
+    # It has a resistance between 500 Ohms at - 100 °C and 3000 Ohms
+    # at + 500 °C.
+    # The realistic range is between 500R and less than 2k, so the
+    # voltage range is between 1.1V and 2.048 V.
+    # Calibrate & convert
+    # Todo: use proper Steinhart-Hart Formula
+    # https://arduinodiy.wordpress.com/2015/11/10/measuring-temperature-with-ntc-the-steinhart-hart-formula/
+    raw_voltage = get_adc(
+        config.SENSOR_ADC_CHANNEL_EXTERNAL_TEMPERATURE, gain=2)
+    # raw_voltage = raw_voltage * 2.048 / 32767.0
+    r_ptc = 200 / ((32767.0 / raw_voltage) - 1)
+    temperature = r_ptc / 1000.0 / 0.0375
+    # return external_temperature
+    return temperature
+
 
 def get_motion_sensor_status():
     '''Tests motions sensor'''
@@ -187,53 +250,6 @@ def get_motion_data():
     # in combination with
     #     https://github.com/hoihu/projects/blob/master/raspi-hat/fusion.py
     return {}
-
-
-
-
-
-def get_adc(channel, gain=0):
-    """Returns voltage at ADC, utility method for other methods"""
-    # Analog via ADS1115 in the form of a https://www.adafruit.com/product/1085
-    # datasheet at http://adafruit.com/datasheets/ads1115.pdf
-    # Library at https://github.com/adafruit/Adafruit-Raspberry-Pi-Python-Code
-    # see also
-    # https://learn.adafruit.com/raspberry-pi-analog-to-digital-converters
-    # and
-    # https://learn.adafruit.com/raspberry-pi-analog-to-digital-converters/ads1015-slash-ads1115
-    # SENSOR_ID_ADC
-    return 0.0
-
-
-def get_battery_status():
-    """Returns  battery status information, like
-    - Voltage in V
-    - Current consumption (before DC-DC converters) in A
-    - Battery temperature (DS18B20)"""
-    # Voltage via simple voltage divider and MCP3204 ADC or directly
-    # via ADS1115 in the form of a
-    # https://www.adafruit.com/product/1085
-    # Current via ACS712/714 + OpAmp + MCP3204 ADC or directly via
-    # ADS1115 in the form of a https://www.adafruit.com/product/1085
-    # TBD calibration, see also
-    # https://cdn-learn.adafruit.com/downloads/pdf/calibrating-sensors.pdf
-    raw_voltage = get_adc(config.SENSOR_ADC_CHANNEL_BATTERY_VOLTAGE, gain=0)
-    # Simple Exponential Regression model for calibration
-    voltage_offset = 0.0
-    voltage_coefficient = 1.0
-    voltage_exponent = 1.0
-    battery_voltage = voltage_offset + voltage_coefficient *\
-        raw_voltage ** voltage_exponent
-    raw_current = get_adc(config.SENSOR_ADC_CHANNEL_CURRENT, gain=0.0)
-    current_offset = 0.0
-    current_coefficient = 1.0
-    current_exponent = 1.0
-    discharge_current = current_offset + current_coefficient *\
-        raw_current ** current_exponent
-    battery_temperature = get_temperature_DS18B20(
-        sensor_id=config.SENSOR_ID_BATTERY_TEMP)
-#    return (battery_voltage, discharge_current, battery_temperature)
-    return (11.8, 0.36, 32.5)
 
 
 if __name__ == '__main__':
