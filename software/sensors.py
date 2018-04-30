@@ -33,6 +33,7 @@
 # $ sudo python setup.py install
 # IV. IMU
 # $ git clone https://github.com/popedison/LSM9DS1.git
+# or use https://github.com/adafruit/Adafruit_CircuitPython_LSM9DS1
 
 
 import logging
@@ -231,6 +232,7 @@ def get_motion_sensor_status():
 
 
 def get_motion_data():
+    # use https://github.com/adafruit/Adafruit_CircuitPython_LSM9DS1
     """Returns all data from the 9 degrees of freedom sensor LSM9DS1"""
     # tbd: Poll rate, format of returned data
     # I2C (or SPI)
