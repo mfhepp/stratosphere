@@ -8,7 +8,7 @@
 # i2c docs e.g. from
 # http://www.raspberry-projects.com/pi/programming-in-python/i2c-programming-in-python/using-the-i2c-interface-2
 #
-# BME280
+# I. BME280
 # $ sudo apt-get update
 # $ sudo apt-get install build-essential python-pip python-dev python-smbus git
 # $ git clone https://github.com/adafruit/Adafruit_Python_GPIO.git
@@ -18,12 +18,60 @@
 # $ git clone https://github.com/adafruit/Adafruit_Python_BME280.git
 # $ cd Adafruit_Python_BME280/
 # $ sudo python setup.py install
+# II. HTU21D
+# I2C overlay fix needed, see issue #828:
+# https://github.com/raspberrypi/firmware/issues/828
+# 1. Download the old module from
+# https://drive.google.com/file/d/0B_P-i4u-SLBXb3VlN0N5amVBb1k/view?usp=sharing
+# 2. Copy that file into /boot/overlays.
+# 3. In /boot/config.txt add the line dtoverlay=i2c1-bcm2708 at the end.
+# Then install library:
+# $ git clone https://github.com/jasiek/HTU21D.git
+
 import logging
+from smbus import SMBus
 from subprocess import PIPE, Popen
 from w1thermsensor import W1ThermSensor
 import Adafruit_BME280
 import config
 import time
+
+
+class HTU21D():
+    """Class for accessing HTU21D sensors via I2C.
+
+    Code taken from https://github.com/jasiek/HTU21D.
+
+    Args:
+        busno (int): The I2C bus (0 or 1, default is 1).
+        address (byte): The I2C address of the sensor.
+    """
+    CMD_TRIG_TEMP_HM = 0xE3
+    CMD_TRIG_HUMID_HM = 0xE5
+    CMD_TRIG_TEMP_NHM = 0xF3
+    CMD_TRIG_HUMID_NHM = 0xF5
+    CMD_WRITE_USER_REG = 0xE6
+    CMD_READ_USER_REG = 0xE7
+    CMD_RESET = 0xFE
+
+    def __init__(self, busno=1, address=config.SENSOR_ID_HUMIDITY_EXT):
+        self.bus = SMBus(busno)
+        self.i2c_address = address
+
+    def read_temperature(self):
+        self.reset()
+        msb, lsb, crc = self.bus.read_i2c_block_data(
+            self.i2c_address, self.CMD_TRIG_TEMP_HM, 3)
+        return -46.85 + 175.72 * (msb * 256 + lsb) / 65536
+
+    def read_humidity(self):
+        self.reset()
+        msb, lsb, crc = self.bus.read_i2c_block_data(
+            self.i2c_address, self.CMD_TRIG_HUMID_HM, 3)
+        return -6 + 125 * (msb * 256 + lsb) / 65536.0
+
+    def reset(self):
+        self.bus.write_byte(self.i2c_address, self.CMD_RESET)
 
 
 def get_temperature_cpu():
@@ -92,7 +140,7 @@ def get_pressure_internal_humidity():
     return hectopascals, humidity
 
 
-def get_humidity_external(sensor=None):
+def get_humidity_external():
     """Returns data from the HTU21D humidity sensor outside
     the probe in percent (1 = 100 %, 0.1 = 10 %)."""
     # see http://www.exp-tech.de/sparkfun-feuchtesensor-breakout-htu21d
@@ -190,7 +238,7 @@ def get_battery_status():
 
 if __name__ == '__main__':
     # add tests / reasonable value check
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     logging.info('Testing sensors.')
     logging.info('Internal temperature: %f °C' % get_temperature_DS18B20(
         sensor_id=config.SENSOR_ID_INTERNAL_TEMP))
@@ -204,7 +252,8 @@ if __name__ == '__main__':
     pressure, humidity_internal = get_pressure_internal_humidity()
     logging.info('Humidity internal: %f %%' % (humidity_internal * 100))
     logging.info('Atmospheric pressure: %f hPa' % pressure)
-    logging.info('Humidity external: %f' % get_humidity_external())
+    sensor = HTU21D(busno=1, address=config.SENSOR_ID_HUMIDITY_EXT)
+    logging.info('Humidity external: %f' % sensor.read_humidity())
     u, i, t = get_battery_status()
     logging.info('Battery status: U=%fV, I=%fA, T=%f°C' % (u, i, t))
     a, b = get_motion_sensor_status()
