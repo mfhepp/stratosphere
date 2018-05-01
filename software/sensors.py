@@ -320,15 +320,19 @@ if __name__ == '__main__':
     logging.info('Humidity external: %f' % sensor.read_humidity())
     u, i, t = get_battery_status()
     logging.info('Battery status: U=%fV, I=%fA, T=%f°C' % (u, i, t))
-    a, b = get_motion_sensor_status()
-    logging.info('Motion sensor status: %s - %s' % (a, b))
     raw_input('Press ENTER to start motion sensor test.')
-    while True:
-        try:
-            logging.info('Motion sensor data: %s [CTRL-C for exit]' %
-                         get_motion_data())
-            time.sleep(0.5)
-        except KeyboardInterrupt:
-            print 'CTRL-C detected.'
-            break
-
+    imu_logger = logging.getLogger('imu')
+    imu_logger.setLevel(logging.DEBUG)
+    try:
+        p = mp.Process(target=log_IMU_data, args=(imu_logger, 10.0))
+        p.start()
+        time.sleep(5)
+        logging.info('Halting IMU thread.')
+        imu_logging_active.value = 0
+        time.sleep(1)
+        p.join()
+    except KeyboardInterrupt:
+        logging.info('CTRL-C detected. Halting IMU thread.')
+        imu_logging_active.value = 0
+        time.sleep(1)
+        p.join()

@@ -112,14 +112,18 @@ def main():
     for led in leds:
         GPIO.output(led, False)
     # Initialize GPS subprocess or thread
-    p = mp.Process(target=gps_info.update_gps_info,
-                   args=(timestamp, altitude, latitude, longitude,
-                         gps_logger, nmea_logger))
-    p.start()
+    p_gps = mp.Process(target=gps_info.update_gps_info,
+                       args=(timestamp, altitude, latitude, longitude,
+                             gps_logger, nmea_logger))
+    p_gps.start()
     # Wait for valid GPS position and time, and sync time
     logging.info('Waiting for valid initial GPS position.')
     while longitude_outdated.value > 0 or latitude_outdated.value > 0:
         time.sleep(1)
+    # Initialize IMU logging subprocess
+    logging.info('Starting IMU logging.')
+    p_imu = mp.Process(target=sensors.log_IMU_data, args=(motion_logger, 10.0))
+    p_imu.start()
     # Set up transmitter
     logging.info('Setting up transceiver via %s.' %
                  config.SERIAL_PORT_TRANSCEIVER)
@@ -177,7 +181,6 @@ def main():
     camera_active = True
     camera_thread = mp.Process(target=camera_handler)
     camera_thread.start()
-    # Set up 9 DOF thread
     # Set up shutdown switch thread or subprocess
     aprs_counter = config.APRS_RATE
     aprs_meta_data_counter = config.APRS_META_DATA_RATE
@@ -270,6 +273,11 @@ def main():
     # turn off transmitter
     # gpio
     # all threads
+    imu_logging_active.value = 1
+    sensors_logging_active = dasdhjashdj
+    gps = 1
+    camera = 1
+    etc
     # shutdown
 
 
