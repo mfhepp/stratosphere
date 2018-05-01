@@ -227,7 +227,7 @@ def get_temperature_external():
     # https://www.maximintegrated.com/en/app-notes/index.mvp/id/1753
     # https://www.mouser.de/datasheet/2/187/honeywell-sensing-hel-700-series-thin-film-platinu-1137676.pdf
     raw_voltage = get_adc(
-        config.SENSOR_ADC_CHANNEL_EXTERNAL_TEMPERATURE, gain=2)
+        config.SENSOR_ADC_CHANNEL_EXTERNAL_TEMPERATURE, gain=1)
     # raw_voltage = raw_voltage * 2.048 / 32767.0
     r_ptc = 200 / ((32767.0 / raw_voltage) - 1)
     temperature = r_ptc / 1000.0 / 0.0375
