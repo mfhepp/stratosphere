@@ -32,18 +32,32 @@
 # $ cd Adafruit_Python_ADS1x15
 # $ sudo python setup.py install
 # IV. IMU
-# $ git clone https://github.com/popedison/LSM9DS1.git
-# or use https://github.com/adafruit/Adafruit_CircuitPython_LSM9DS1
+# https://github.com/akimach/LSM9DS1_RaspberryPi_Library
+# a) WiringPi
+# $ sudo apt-get install libi2c-dev
+# $ git clone git://git.drogon.net/wiringPi
+# $ cd wiringPi
+# $ git pull origin
+# $ ./build
+# $ cd ..
+# b) library
+# $ git clone https://github.com/akimach/LSM9DS1_RaspberryPi_Library.git
+# $ cd LSM9DS1_RaspberryPi_Library
+# $ make
+# $ sudo make install
 
 
 import logging
 import config
+from shared_memory import *
 import time
+import datetime
 from smbus import SMBus
 from subprocess import PIPE, Popen
 from w1thermsensor import W1ThermSensor
 import Adafruit_BME280
 import Adafruit_ADS1x15
+import lsm9ds1
 
 
 class HTU21D():
@@ -221,40 +235,69 @@ def get_temperature_external():
     return temperature
 
 
-def get_motion_sensor_status():
-    '''Tests motions sensor'''
-    '''Return 0 for False and 1 for True and a short string with
-    orientation etc.'''
-    # enable
-    # read
-    # reasonable
-    return 0, "Readings as Text, including Compass"
+def log_IMU_data(logger, sample_rate):
+    """Logs the data from the 9-DoF sensor LSM9DS1 to the given logger.
 
+    Args:
+        logger: A logger object.
+        sample_rate(float): The sample rate in Hz
+    """
+    duration_of_cycle = 1.0 / sample_rate
+    imu = lsm9ds1.lib.lsm9ds1_create()
+    lsm9ds1.lib.lsm9ds1_begin(imu)
+    if lsm9ds1.lib.lsm9ds1_begin(imu) == 0:
+        logging.error('ERROR: IMU LSM9DS1 unit not found.')
+        return
+    lsm9ds1.lib.lsm9ds1_calibrate(imu)
 
-def get_motion_data():
-    # use https://github.com/adafruit/Adafruit_CircuitPython_LSM9DS1
-    """Returns all data from the 9 degrees of freedom sensor LSM9DS1"""
-    # tbd: Poll rate, format of returned data
-    # I2C (or SPI)
-    # likely a separate thread with a high polling rate
-    # (but mind i2c collisions; maybe use second I2C interface just for
-    # this sensor)
-    # see https://www.sparkfun.com/products/13284
-    # https://cdn.sparkfun.com/assets/learn_tutorials/3/7/3/LSM9DS1_Datasheet.pdf
-    # SENSOR_ID_MOTION
-    # See also here for converting IMU data to yaw, pitch and roll
-    #     https://github.com/micropython-IMU/micropython-fusion
-    # and
-    #    https://github.com/micropython-IMU (but MicroPython)
-    # LSM9DS1 Library:
-    #     https://github.com/hgonzale/PiCar/blob/master/src/picar/IMU.py
-    # Also interesting library:
-    #     https://github.com/mwilliams03/BerryIMU
-    # Update 2017-06: The best solution seems to be
-    #     https://github.com/hoihu/projects/blob/master/raspi-hat/lsm9ds1.py
-    # in combination with
-    #     https://github.com/hoihu/projects/blob/master/raspi-hat/fusion.py
-    return {}
+    while imu_logging_active.value:
+        start_time = time.time()
+        while lsm9ds1.lib.lsm9ds1_gyroAvailable(imu) == 0:
+            pass
+        lsm9ds1.lib.lsm9ds1_readGyro(imu)
+        while lsm9ds1.lib.lsm9ds1_accelAvailable(imu) == 0:
+            pass
+        lsm9ds1.lib.lsm9ds1_readAccel(imu)
+        while lsm9ds1.lib.lsm9ds1_magAvailable(imu) == 0:
+            pass
+        lsm9ds1.lib.lsm9ds1_readMag(imu)
+
+        gx = lsm9ds1.lib.lsm9ds1_getGyroX(imu)
+        gy = lsm9ds1.lib.lsm9ds1_getGyroY(imu)
+        gz = lsm9ds1.lib.lsm9ds1_getGyroZ(imu)
+
+        ax = lsm9ds1.lib.lsm9ds1_getAccelX(imu)
+        ay = lsm9ds1.lib.lsm9ds1_getAccelY(imu)
+        az = lsm9ds1.lib.lsm9ds1_getAccelZ(imu)
+
+        mx = lsm9ds1.lib.lsm9ds1_getMagX(imu)
+        my = lsm9ds1.lib.lsm9ds1_getMagY(imu)
+        mz = lsm9ds1.lib.lsm9ds1_getMagZ(imu)
+
+        cgx = lsm9ds1.lib.lsm9ds1_calcGyro(imu, gx)
+        cgy = lsm9ds1.lib.lsm9ds1_calcGyro(imu, gy)
+        cgz = lsm9ds1.lib.lsm9ds1_calcGyro(imu, gz)
+
+        cax = lsm9ds1.lib.lsm9ds1_calcAccel(imu, ax)
+        cay = lsm9ds1.lib.lsm9ds1_calcAccel(imu, ay)
+        caz = lsm9ds1.lib.lsm9ds1_calcAccel(imu, az)
+
+        cmx = lsm9ds1.lib.lsm9ds1_calcMag(imu, mx)
+        cmy = lsm9ds1.lib.lsm9ds1_calcMag(imu, my)
+        cmz = lsm9ds1.lib.lsm9ds1_calcMag(imu, mz)
+        # CSV Format:
+        # datetime, gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z, mag_x, mag_y, mag_z
+        # Units: Gyro: deg/s, Accel: Gs, Mag: gauss
+        msg = '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s' % (
+            datetime.datetime.utcnow().isoformat(),
+            cgx, cgy, cgz, cax, cay, caz, cmx, cmy, cmz)
+        if logger is not None:
+            logger.info(msg)
+        else:
+            logging.debug(msg)
+        delay = duration_of_cycle - (time.time() - start_time)
+        if delay > 0:
+            time.sleep(delay)
 
 
 if __name__ == '__main__':
