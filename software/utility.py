@@ -90,6 +90,12 @@ def check_and_initialize_USB():
         os.system('sudo shutdown -h now')
 
 
+def check_free_disk_space():
+    """Checks whether the USB drive has sufficient free space."""
+# TODO
+    return False
+
+
 def disable_usv_charging():
     """Turns of the charging of the S.USV backup power supply, because we
     do not want to charge this emergency unit from the onboard batteries

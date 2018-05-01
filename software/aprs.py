@@ -21,10 +21,13 @@ from shared_memory import *
 from math import ceil, log
 from aprslib import int_type
 import dra818
+import afsk
 import gps_info
 import subprocess
 import RPi.GPIO as GPIO
 import pickle
+import audiogen
+import utility
 
 
 def init_sequence_number():
@@ -120,7 +123,7 @@ def _compose_message(aprs_info, destination='APRS', ssid=config.APRS_SSID,
 
 def send_aprs(transceiver, aprs_info, frequency=config.APRS_FREQUENCY,
               ssid=config.APRS_SSID, aprs_path=config.APRS_PATH,
-              aprs_destination='', full_power=False):
+              aprs_destination=b'APRS', full_power=False):
     """Transmits the given APRS message via the DRA818 transceiver object.
 
     Args:
@@ -141,59 +144,26 @@ def send_aprs(transceiver, aprs_info, frequency=config.APRS_FREQUENCY,
         False: Transmission failed.
     """
 
-    """
-    new
-    import afsk
-
-    packet = afsk.ax25.UI(
-            destination=args.destination,
-            source=args.callsign,
-            info=args.info,
-            digipeaters=args.digipeaters.split(b','),
-        )
-    audio = afsk.encode(packet.unparse())
-    with open(args.output, 'wb') as f:
-                audiogen.sampler.write_wav(f, audio)
-
-    maybe todo: try https://docs.python.org/2/library/stringio.html
-
-    """
-
     try:
         # See https://github.com/casebeer/afsk
-        if aprs_destination:
-            command = 'aprs -c {callsign} --destination {destination} \
--d {path} -o {usb_path}/aprs.wav "{info}"'.format(
-                callsign=ssid,
-                destination=aprs_destination,
-                path=aprs_path,
-                info=aprs_info,
-                usb_path=config.USB_DIR)
-        else:
-            if '"' in aprs_info:
-                command = "aprs -c {callsign} -d {path} -o {usb_path}/aprs.wav\
- '{info}'".format(callsign=ssid,
-                  path=aprs_path,
-                  info=aprs_info,
-                  usb_path=config.USB_DIR)
-            else:
-                command = 'aprs -c {callsign} -d {path} -o {usb_path}/aprs.wav\
- "{info}"'.format(callsign=ssid,
-                  path=aprs_path,
-                  info=aprs_info,
-                  usb_path=config.USB_DIR)
- # TODO if info contains # and " - what shall we do???
-
+        packet = afsk.ax25.UI(
+            destination=aprs_destination,
+            source=ssid,
+            info=aprs_info,
+            digipeaters=aprs_path.split(b','))
+        logging.info(r"APRS packet content: '{0}'".format(packet))
+        fn = os.path.join(config.USB_DIR, 'aprs.wav')
+        logging.info('Now generating file %s for APRS packet.' % fn)
+        audio = afsk.encode(packet.unparse())
+        with open(fn, 'wb') as f:
+            audiogen.sampler.write_wav(f, audio)
         # TODO: It would be better to play the APRS directly from memory,
         # but setting up PyAudio on Raspbian did not work.
         # So we take the USB stick instead of the SDCARD in order to
         # minimize wear-off on the latter.
         # The downside is that failure of the USB stick will break
         # APRS completely.
-        logging.info('Generating APRS wav for [%s]' % command)
-        subprocess.call(command, shell=True)
-        print '-- > %s/aprs.py' % config.USB_DIR
-        if not os.path.exists('%s/aprs.wav' % config.USB_DIR):
+        if not os.path.exists(fn):
             logging.error('Error: Problem generating APRS wav file.')
             return False
         logging.info('Sending APRS packet from %s via %s [%f MHz]' % (
@@ -209,9 +179,9 @@ def send_aprs(transceiver, aprs_info, frequency=config.APRS_FREQUENCY,
         # Also see
         # http://www.forum-raspberrypi.de/Thread-suche-python-befehl-fuer-den-alsa-amixer
         status = transceiver.transmit_audio_file(
-            frequency, ['%s/aprs.wav' % config.USB_DIR], full_power=full_power)
+            frequency, [fn], full_power=full_power)
         try:
-            os.remove('%s/aprs.wav' % config.USB_DIR)
+            os.remove(fn)
         except OSError:
             pass
     finally:
@@ -289,9 +259,11 @@ def generate_aprs_position(telemetry=False):
         logging.info('GPS obfuscation used for APRS with (%f, %f) at %fm.' %
                      (config.GPS_OBFUSCATION_DELTA['lat'],
                       config.GPS_OBFUSCATION_DELTA['lon'], altitude.value))
+        GpO = 1
     else:
         lat = latitude.value
         lon = longitude.value
+        GpO = 0
     latitude_string = '%07.2f%s' % (DD_to_DMS(lat), latitude_direction.value)
     longitude_string = '%08.2f%s' % (DD_to_DMS(lon), longitude_direction.value)
     if telemetry:
@@ -305,7 +277,26 @@ def generate_aprs_position(telemetry=False):
         humidity = int(humidity_external.value * 8000)
         # Channel 5: Battery voltage 0.0 - 15 V -> multiply by 256
         voltage = int(battery_voltage.value * 256)
-
+        # Binary channels
+        # CamT - Top camera recording
+        CamT = cam_top_recording.value
+        # CamB - Bottom camera recording
+        CamB = cam_bottom_recording.value
+        # GpO - future feature: see above
+        # Dsk - USB disk okay / enough memory
+        Dsk = int(utility.check_free_disk_space())
+        # gA - GPS lat outdated
+        gA = latitude_outdated.value
+        # gO - GPS lon outdated
+        gO = longitude_outdated.value
+        # Al - GPS alt outdated
+        Al = altitude_outdated.value
+        # Binary values are put into a single Base91 encoded integer,
+        # where the LSB (least significant bit) corresponds
+        # to B1 of the traditional Telemetry specification,
+        # the 8th bit corresponds to B8.
+        binary_channels = CamT + CamB * 2 + Dsk * 4 + gA * 8 + gO * 16 + \
+            Al * 32
         sequence_number = (sequence_number + 1) & 0x1FFF
         logging.info('Sequence number: %i, %s' % (sequence_number,
                      convert_decimal_to_base91(sequence_number)))
@@ -315,13 +306,14 @@ def generate_aprs_position(telemetry=False):
                 pickle.dump(sequence_number, pickle_handler)
         except Exception as msg:
             logging.exception(msg)
-        comment = b'|%s%s%s%s%s%s|' % (
+        comment = b'|%s%s%s%s%s%s%s|' % (
             convert_decimal_to_base91(sequence_number, width=2),
             convert_decimal_to_base91(atm, width=2),
             convert_decimal_to_base91(t_int, width=2),
             convert_decimal_to_base91(t_ext, width=2),
             convert_decimal_to_base91(humidity, width=2),
-            convert_decimal_to_base91(voltage, width=2))
+            convert_decimal_to_base91(voltage, width=2),
+            convert_decimal_to_base91(binary_channels, width=2))
     else:
         comment = "B_U=%2.2f B_T=%2.2f" % (
             battery_voltage.value, battery_temp.value)
@@ -349,11 +341,18 @@ def generate_aprs_telemetry_definition(target_station=config.APRS_SSID):
 
     Args:
         target_station (str): The SSID of the balloon."""
-    # We do not use binary fields.
+    # Binary Fields:
+    # CamT - Top camera recording
+    # CamB - Bottom camera recording
+    # GpO - future feature
+    # Dsk - USB disk okay / enough memory
+    # gA - GPS lat outdated
+    # gO - GPS lon outdated
+    # Al - GPS alt outdated
     parameters_name_message = ':%s:PARM.ATM,T_Int,T_Ext,Humid,Batt' %\
-        target_station.ljust(9, ' ')
+        target_station.ljust(9, ' ') + ',CamT,CamB,GpO,Dsk,gA,gO,Al'
     parameters_unit_message = ':%s:UNIT.mBar,degC,degC,%%,V' %\
-        target_station.ljust(9, ' ')
+        target_station.ljust(9, ' ') + ',on,on,on,ok,ok,ok,ok'
     # Equation coefficients (a,b,c) = a * value^2 + b * value + c
     # Hard-wired, cf. generate_aprs_position(telemetry=True)
     c1 = '0,0.25,0'  # Channel 1: Pressure: 0 - 1500 -> * 4
@@ -368,7 +367,7 @@ def generate_aprs_telemetry_definition(target_station=config.APRS_SSID):
     parameters_equation_coefficients_message = \
         ':{}:EQNS.{},{},{},{},{}'.format(
             target_station.ljust(9, ' '), c1, c2, c3, c4, c5)
-    bit_sense_project_name_message = ':%s:BITS.00000000,%s' % \
+    bit_sense_project_name_message = ':%s:BITS.11111111,%s' % \
         (target_station.ljust(9, ' '), config.APRS_COMMENT[:22])
     return [parameters_name_message, parameters_unit_message,
             parameters_equation_coefficients_message,
@@ -377,7 +376,7 @@ def generate_aprs_telemetry_definition(target_station=config.APRS_SSID):
 
 if __name__ == '__main__':
     global sequence_number
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     # Fetching single valid GPS position
     uart = config.GPS_SERIAL_PORT
     baudrate = config.GPS_SERIAL_PORT_BAUDRATE
