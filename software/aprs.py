@@ -367,7 +367,7 @@ def generate_aprs_telemetry_definition(target_station=config.APRS_SSID):
     parameters_equation_coefficients_message = \
         ':{}:EQNS.{},{},{},{},{}'.format(
             target_station.ljust(9, ' '), c1, c2, c3, c4, c5)
-    bit_sense_project_name_message = ':%s:BITS.11111111,%s' % \
+    bit_sense_project_name_message = ':%s:BITS.11111000,%s' % \
         (target_station.ljust(9, ' '), config.APRS_COMMENT[:22])
     return [parameters_name_message, parameters_unit_message,
             parameters_equation_coefficients_message,
