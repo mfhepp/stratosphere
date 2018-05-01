@@ -92,8 +92,15 @@ def check_and_initialize_USB():
 
 def check_free_disk_space():
     """Checks whether the USB drive has sufficient free space."""
-# TODO
-    return False
+    # http://stackoverflow.com/questions/4260116/find-size-and-free-space-of-the-filesystem-containing-a-given-file
+    st = os.statvfs(config.USB_DIR)
+    free = st.f_bavail * st.f_frsize
+    logging.info('Available space on USB stick: %s GB ' %
+                 format(float(free) / (1024 * 1024 * 1024), ','))
+    if free > config.DISK_SPACE_MINIMUM:
+        return True
+    else:
+        return False
 
 
 def disable_usv_charging():
