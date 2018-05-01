@@ -221,18 +221,21 @@ def get_temperature_external():
     # at + 500 °C.
     # The realistic range is between 500R and less than 2k, so the
     # voltage range is between 1.1V and 2.048 V.
-    # Calibrate & convert
-# TODO: use proper Steinhart-Hart Formula
-    # https://arduinodiy.wordpress.com/2015/11/10/measuring-temperature-with-ntc-the-steinhart-hart-formula/
-    # https://www.maximintegrated.com/en/app-notes/index.mvp/id/1753
-    # https://www.mouser.de/datasheet/2/187/honeywell-sensing-hel-700-series-thin-film-platinu-1137676.pdf
-    raw_voltage = get_adc(
-        config.SENSOR_ADC_CHANNEL_EXTERNAL_TEMPERATURE, gain=1)
-    # raw_voltage = raw_voltage * 2.048 / 32767.0
-    r_ptc = 200 / ((32767.0 / raw_voltage) - 1)
-    temperature = r_ptc / 1000.0 / 0.0375
-    # return external_temperature
-    return temperature
+    # We use a simplified approach, because the ADC resolution etc.
+    # will limit precision anyway.
+    # From the datasheet
+    A = 3.81 * 10**-3
+    # B = -6.02 * 10**-7
+    # C = -6.0 * 10**-12
+    T0 = 1000  # PTC resistance at 0 °C
+    ADC_MAX = 32767.0
+    R_SERIES = 988     # Nominal 1k, adjusted for calibration
+    factor = 2.048 / 3.3  # ADC range is different from Vcc
+    adc = get_adc(config.SENSOR_ADC_CHANNEL_EXTERNAL_TEMPERATURE, gain=2)
+    adc = adc * factor
+    r_ptc = R_SERIES / (ADC_MAX / adc - 1)
+    temp = r_ptc / (T0 * A) - 1 / A
+    return temp
 
 
 def log_IMU_data(logger, sample_rate):
@@ -317,7 +320,7 @@ if __name__ == '__main__':
     logging.info('Humidity internal: %f %%' % (humidity_internal * 100))
     logging.info('Atmospheric pressure: %f hPa' % pressure)
     sensor = HTU21D(busno=1, address=config.SENSOR_ID_HUMIDITY_EXT)
-    logging.info('Humidity external: %f' % sensor.read_humidity())
+    logging.info('Humidity external: %f %%' % sensor.read_humidity())
     u, i, t = get_battery_status()
     logging.info('Battery status: U=%fV, I=%fA, T=%f°C' % (u, i, t))
     raw_input('Press ENTER to start motion sensor test.')
