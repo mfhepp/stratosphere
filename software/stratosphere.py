@@ -150,25 +150,16 @@ def main():
         transceiver.stop_transmitter()
     # Set up and start external cameras
     cam_top = camera.ExternalCamera(
-        config.CAM1_PWR,
-        config.CAM1_REC,
-        config.CAM1_STATUS)
+        config.CAM2_PWR,
+        config.CAM2_REC,
+        config.CAM2_STATUS)
     status_ok = cam_top.start_recording()
     if status_ok:
         logging.info('Top camera recording started.')
     else:
         logging.error('Problem: Top camera recording not running.')
     # add wait for ack
-    cam_bottom = camera.ExternalCamera(
-        config.CAM2_PWR,
-        config.CAM2_REC,
-        config.CAM2_STATUS)
-    status_ok = cam_bottom.start_recording()
-    if status_ok:
-        logging.info('Bottom camera recording started.')
-    else:
-        logging.error('Problem: Bottom camera recording not running.')
-    # Add wait for ack
+
     # tbd
     # Set up sensors and self-test sensors
     # a) self-test sensors
