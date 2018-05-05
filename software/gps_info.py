@@ -198,6 +198,7 @@ def update_gps_info(gps_logger=None, nmea_logger=None):
 
 
 if __name__ == '__main__':
+    import aprs
     global continue_gps
     logging.basicConfig(level=logging.DEBUG)
     utility.check_and_initialize_USB()
@@ -230,10 +231,18 @@ if __name__ == '__main__':
         time.sleep(1)
     logging.info('Now reading GPS info from shared memory.')
     for i in range(12):
-        logging.info('GPS: lat=%f %s, long=%f %s, alt=%fm, timestamp: %s' %
+        logging.info('GPS: lat=%f %s, lon=%f %s, alt=%fm, timestamp: %s' %
                      (latitude.value, latitude_direction.value,
                       longitude.value, longitude_direction.value,
                       altitude.value, timestamp.value))
+        lat = latitude.value
+        lon = longitude.value
+        latitude_string = '%07.2f%s' % (
+            aprs.DD_to_DMS(lat), latitude_direction.value)
+        longitude_string = '%08.2f%s' % (
+            aprs.DD_to_DMS(lon), longitude_direction.value)
+        logging.info('APRS: lat=%s, lon=%s' % (
+            latitude_string, longitude_string))
         time.sleep(3)
     logging.info('Terminating GPS thread. Please wait.')
     continue_gps.value = 0

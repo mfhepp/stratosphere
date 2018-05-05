@@ -44,7 +44,7 @@ GPS_OBFUSCATION_DELTA = {'lat': 0.25, 'lon': -0.35}
 # Not used, we turn this mode on right from the beginning.
 
 # Power Management
-BATTERY_VOLTAGE_MIN = 9.6  # depends highly on battery type!!!
+BATTERY_VOLTAGE_MIN = 8.0  # depends highly on battery type!!!
 
 # Sensors
 # 3-wire sensors

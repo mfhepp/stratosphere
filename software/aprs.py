@@ -19,6 +19,7 @@ import datetime
 import config
 from shared_memory import *
 from math import ceil, log
+import math
 from aprslib import int_type
 import dra818
 import afsk
@@ -98,12 +99,11 @@ def convert_decimal_to_base91(number, width=1):
 def DD_to_DMS(lat_or_lon):
     """Converts a GPS coordinate in DD format (e.g. 47.5000) to DMS format
     needed for APRS, i.e. 4730.00."""
-    dd = abs(float(lat_or_lon))
-    deg = int(dd)
-    minsec = dd - deg
-    cmin = int(minsec * 60)
-    csec = (minsec % 60) / float(60)
-    return float(deg * 100 + cmin + csec)
+    d = math.floor(abs(lat_or_lon))
+    min_sec = (lat_or_lon - d) * 60.0
+    min_sec = round(min_sec, 2)
+    dms = d * 100 + min_sec
+    return dms
 
 
 def clip(val, min_, max_):
