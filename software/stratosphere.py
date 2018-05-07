@@ -7,6 +7,7 @@ import logging
 import os
 import time
 import datetime
+import random
 import multiprocessing as mp
 import RPi.GPIO as GPIO
 import config
@@ -16,6 +17,7 @@ import gps_info
 import camera
 import dra818
 import aprs
+import sstv
 from PIL import Image, ImageDraw, ImageFont
 from shared_memory import *
 
@@ -235,15 +237,18 @@ def main():
     else:
         logging.error('ERROR: Problem sending APRS telemetry definitions.')
     logging.info('Sending initial APRS position report.')
-    status = aprs.send_aprs(main.generate_aprs_position(telemetry=False),
-                            full_power=config.APRS_FULL_POWER)
-    if status:
-        logging.info('OK: Initial APRS packet sent.')
-    else:
-        logging.error('ERROR: Problem sending initial APRS packet.')
+    for i in range(3):
+        status = aprs.send_aprs(aprs.generate_aprs_position(telemetry=True),
+                                full_power=config.APRS_FULL_POWER)
+        if status:
+            logging.info('OK: Initial APRS packet sent. [%i of 3]' % i + 1)
+        else:
+            logging.error('ERROR: Problem sending initial APRS packet.')
+        time.sleep(2)
     # Set up and start external camera
     logging.info('Waiting for top camera boot-up delay.')
-    for i in range(30):
+# TODO
+    for i in range(3):
         logging.info('%i sec' % i)
         time.sleep(1)
     # Start external camera unit.
@@ -274,7 +279,7 @@ def main():
     logging.info('Starting main thread with the following rates:')
     logging.info('\taprs_counter = %s' % aprs_counter)
     logging.info('\taprs_meta_data_counter = %s' % aprs_meta_data_counter)
-    logging.info('\tsstv_counter' % sstv_counter)
+    logging.info('\tsstv_counter = %s' % sstv_counter)
     GPIO.output(config.SPARE_STATUS_LED_PIN, False)
     while True:
         try:
@@ -285,8 +290,8 @@ def main():
             # humidity_int, humidity_ext, pressure, temp_cpu,
             # batt_voltage, batt_current, batt_temp,
             # cpu_temp
-            data_message = '%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,\
-             %s, %s, %s, %s, %s' % (
+            data_message = '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,\
+             %s,%s,%s,%s' % (
                 datetime.datetime.utcnow().isoformat(),
                 latitude.value,
                 latitude_direction.value,
@@ -304,11 +309,11 @@ def main():
                 battery_temp.value,
                 cpu_temp.value
             )
-            datalogger.info(data_message)
+            data_logger.info(data_message)
             # Send APRS beacon
             # Delay tx by random number of 0..10 secs in order to minimize
             # collisions on the APRS frequency
-            time.sleep(random.random * 10)
+            time.sleep(random.random() * 10)
             if aprs_meta_data_counter <= 0:
                 logging.info('Sending four APRS telemetry definitions.')
                 # Send APRS meta-data (only every n-th cycle)
@@ -341,7 +346,7 @@ def main():
                 else:
                     beacon_counter -= 1
                 time.sleep(5)
-                fn = last_sstv_image.value
+                fn = last_sstv_image.value.strip()
                 logging.info('Sending SSTV file %s.' % fn)
                 if os.path.exists(fn):
                     send_sstv(transceiver, config.SSTV_FREQUENCY,

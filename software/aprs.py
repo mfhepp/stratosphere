@@ -32,7 +32,7 @@ import utility
 import time
 
 
-def init_sequence_number():
+def get_sequence_number():
     """Tries to load the most recent sequence number from disk.
 
     The APRS telemetry sequence number must be incremented if
@@ -41,24 +41,19 @@ def init_sequence_number():
     sequence_number = 0
     try:
         fn1 = os.path.join(config.USB_DIR, 'sequence_number.dat')
-        if not os.path.exists(fn1):
-            return 0
-        logging.debug('Reading %s' % fn1)
-        with open(fn1, 'rb') as pickle_handler:
-            sequence_number = pickle.load(pickle_handler)
+        if os.path.exists(fn1):
+            logging.debug('Reading APRS sequence number from %s' % fn1)
+            with open(fn1, 'rb') as pickle_handler:
+                sequence_number = int(pickle.load(pickle_handler))
+                if sequence_number < 0:
+                    sequence_number = 0
+        sequence_number = (sequence_number + 1) & 0x1FFF
+        with open(fn1, 'wb') as pickle_handler:
+            pickle.dump(sequence_number, pickle_handler)
+        logging.info('New APRS sequence number: %i, %s' % (
+            sequence_number, convert_decimal_to_base91(sequence_number)))
     except Exception as msg:
         logging.exception(msg)
-        sequence_number = 0
-
-    if sequence_number is None or sequence_number < 0 or \
-            sequence_number > 8191:
-        sequence_number = 0
-        try:
-            fn1 = os.path.join(config.USB_DIR, 'sequence_number.dat')
-            with open(fn1, 'wb') as pickle_handler:
-                pickle.dump(sequence_number, pickle_handler)
-        except Exception as msg:
-            logging.exception(msg)
     return sequence_number
 
 
@@ -268,7 +263,6 @@ def generate_aprs_position(telemetry=False):
         telemetry (boolean): Adds Base 91 telemetry to the comment if True
 
     All data comes from the shared memory variables.'''
-    global sequence_number
     if config.GPS_OBFUSCATION and altitude_max.value > (altitude.value + 1000):
         lat = latitude.value + config.GPS_OBFUSCATION_DELTA['lat']
         lon = longitude.value + config.GPS_OBFUSCATION_DELTA['lon']
@@ -313,15 +307,7 @@ def generate_aprs_position(telemetry=False):
         # the 8th bit corresponds to B8.
         binary_channels = CamT + CamB * 2 + Dsk * 4 + gA * 8 + gO * 16 + \
             Al * 32
-        sequence_number = (sequence_number + 1) & 0x1FFF
-        logging.info('Sequence number: %i, %s' % (sequence_number,
-                     convert_decimal_to_base91(sequence_number)))
-        try:
-            fn1 = os.path.join(config.USB_DIR, 'sequence_number.dat')
-            with open(fn1, 'wb') as pickle_handler:
-                pickle.dump(sequence_number, pickle_handler)
-        except Exception as msg:
-            logging.exception(msg)
+        sequence_number = get_sequence_number()
         comment = b'|%s%s%s%s%s%s%s|' % (
             convert_decimal_to_base91(sequence_number, width=2),
             convert_decimal_to_base91(atm, width=2),
@@ -392,7 +378,6 @@ def generate_aprs_telemetry_definition(target_station=config.APRS_SSID):
 
 if __name__ == '__main__':
     import stratosphere
-    global sequence_number
     logging.basicConfig(level=logging.INFO)
     gps_logger = logging.getLogger('gps')
     gps_logger.setLevel(logging.ERROR)
@@ -416,7 +401,6 @@ if __name__ == '__main__':
     logging.info('Testing APRS functions.')
     import aprslib
     logging.info('Now generating and parsing APRS messages.')
-    sequence_number = init_sequence_number()
     aprs_strings = [_compose_message(message) for message in [
         generate_aprs_position(), generate_aprs_position(telemetry=True)]]
     aprs_strings.extend([_compose_message(message) for message in

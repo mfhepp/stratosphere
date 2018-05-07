@@ -6,7 +6,9 @@ import multiprocessing as mp
 
 # Global variables in shared memory
 timestamp = mp.Array("c", "01-01-1970T00:00:00Z")
-last_sstv_image = mp.Array("c", "files/sstv-testbild-small.png")
+# Arrays have a fixed length, so we must initialize it with a value
+# that is long enough for all usages
+last_sstv_image = mp.Array("c", "files/sstv-testbild-small.png" + ' ' * 100)
 altitude = mp.Value("d", 0.0)
 altitude_outdated = mp.Value("i", 1)
 altitude_max = mp.Value("d", 25000.0)
