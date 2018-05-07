@@ -29,6 +29,7 @@ import RPi.GPIO as GPIO
 import pickle
 import audiogen
 import utility
+import time
 
 
 def init_sequence_number():
@@ -121,7 +122,7 @@ def _compose_message(aprs_info, destination='APRS', ssid=config.APRS_SSID,
         info=aprs_info)
 
 
-def send_aprs(transceiver, aprs_info, frequency=config.APRS_FREQUENCY,
+def send_aprs(aprs_info, frequency=config.APRS_FREQUENCY,
               ssid=config.APRS_SSID, aprs_path=config.APRS_PATH,
               aprs_destination=b'APRS', full_power=False):
     """Transmits the given APRS message via the DRA818 transceiver object.
@@ -178,6 +179,13 @@ def send_aprs(transceiver, aprs_info, frequency=config.APRS_FREQUENCY,
         # http://larsimmisch.github.io/pyalsaaudio/pyalsaaudio.html#alsa-and-python
         # Also see
         # http://www.forum-raspberrypi.de/Thread-suche-python-befehl-fuer-den-alsa-amixer
+        transceiver = dra818.DRA818(
+            uart=config.SERIAL_PORT_TRANSCEIVER,
+            ptt_pin=config.DRA818_PTT,
+            power_down_pin=config.DRA818_PD,
+            rf_power_level_pin=config.DRA818_HL,
+            frequency=frequency,
+            squelch_level=config.SQUELCH)
         status = transceiver.transmit_audio_file(
             frequency, [fn], full_power=full_power)
         try:
@@ -189,7 +197,7 @@ def send_aprs(transceiver, aprs_info, frequency=config.APRS_FREQUENCY,
     return status
 
 
-def send_telemetry_definitions(transceiver, frequency=config.APRS_FREQUENCY,
+def send_telemetry_definitions(frequency=config.APRS_FREQUENCY,
                                ssid=config.APRS_SSID,
                                aprs_path=config.APRS_PATH,
                                aprs_destination='',
@@ -201,7 +209,6 @@ def send_telemetry_definitions(transceiver, frequency=config.APRS_FREQUENCY,
     beaconing station, i.e. the SSID of the balloon.
 
     Args:
-        transceiver (DRA818): The DRA818 transceiver object.
         frequency (float): The frequency in MHz. Must be a multiple of
         25 KHz and within the allowed ham radio band allocation.
         ssid (str): The APRS SSID (e.g. 'CALLSIGN-7')
@@ -239,6 +246,13 @@ def send_telemetry_definitions(transceiver, frequency=config.APRS_FREQUENCY,
                 return False
     # Transmit all four messages in one turn, i.e. without turning off
     # the transceiver.
+    transceiver = dra818.DRA818(
+        uart=config.SERIAL_PORT_TRANSCEIVER,
+        ptt_pin=config.DRA818_PTT,
+        power_down_pin=config.DRA818_PD,
+        rf_power_level_pin=config.DRA818_HL,
+        frequency=frequency,
+        squelch_level=config.SQUELCH)
     transceiver.set_filters(pre_emphasis=config.PRE_EMPHASIS)
     status = transceiver.transmit_audio_file(
         frequency, wav_files, full_power=full_power)
@@ -375,13 +389,17 @@ def generate_aprs_telemetry_definition(target_station=config.APRS_SSID):
 
 
 if __name__ == '__main__':
+    import stratosphere
     global sequence_number
     logging.basicConfig(level=logging.INFO)
+    gps_logger = logging.getLogger('gps')
+    gps_logger.setLevel(logging.ERROR)
+    nmea_logger = logging.getLogger('nmea')
+    nmea_logger.setLevel(logging.ERROR)
     # Initialize GPS subprocess / thread
     continue_gps.value = 1
     p_gps = mp.Process(target=gps_info.update_gps_info,
-                       args=(timestamp, altitude, latitude, longitude,
-                             gps_logger, nmea_logger))
+                       args=(gps_logger, nmea_logger))
     p_gps.start()
     # Wait for valid GPS position and time, and sync time
     logging.info('Waiting for valid initial GPS position.')
@@ -390,22 +408,9 @@ if __name__ == '__main__':
     # Initialize sensors thread
     sensors_active.value = 1
     logging.info('Starting sensors logging.')
-    p_sensors = mp.Process(target=sensors_handler)
+    p_sensors = mp.Process(target=stratosphere.sensors_handler)
     p_sensors.start()
     logging.info('Sensors logging OK.')
-    """# Fetching single valid GPS position
-    uart = config.GPS_SERIAL_PORT
-    baudrate = config.GPS_SERIAL_PORT_BAUDRATE
-    logging.info('GPS found at %s with %i baud' % (uart, baudrate))
-    logging.info('Trying to read current position.')
-    msg, date = gps_info.get_info(uart, baudrate)
-    altitude.value = msg.altitude
-    latitude.value = float(msg.latitude)
-    latitude_direction.value = msg.lat_dir
-    longitude.value = float(msg.longitude)
-    longitude_direction.value = msg.lon_dir
-   logging.info('Shared memory variables initialized.')
-    """
     logging.info('Testing APRS functions.')
     import aprslib
     logging.info('Now generating and parsing APRS messages.')
@@ -424,38 +429,24 @@ if __name__ == '__main__':
     except (aprslib.ParseError, aprslib.UnknownFormat) as exp:
         logging.error('Error: Parsing APRS message failed.')
         logging.exception(msg)
+
     logging.info('Now starting APRS transmission tests.')
-    transceiver = dra818.DRA818(
-        uart=config.SERIAL_PORT_TRANSCEIVER,
-        ptt_pin=config.DRA818_PTT,
-        power_down_pin=config.DRA818_PD,
-        rf_power_level_pin=config.DRA818_HL,
-        frequency=config.APRS_FREQUENCY,
-        squelch_level=1)
     raw_input('Press ENTER to start APRS transmission [CTRL-C for exit].')
     logging.info('Sending four telemetry definition messages.')
-    status = send_telemetry_definitions(transceiver, full_power=True)
+    status = send_telemetry_definitions(full_power=True)
     logging.info('Transmission status: %s' % status)
     while True:
         try:
             raw_input('Press ENTER to for next transmission' +
                       ' [CTRL-C for exit].')
-            # Test, now more stable
-            transceiver = dra818.DRA818(
-                uart=config.SERIAL_PORT_TRANSCEIVER,
-                ptt_pin=config.DRA818_PTT,
-                power_down_pin=config.DRA818_PD,
-                rf_power_level_pin=config.DRA818_HL,
-                frequency=config.APRS_FREQUENCY,
-                squelch_level=1)
             logging.info('Sending position report with telemetry.')
-            status = send_aprs(transceiver,
-                               generate_aprs_position(telemetry=True),
-                               full_power=True)
+            info_msg = generate_aprs_position(telemetry=True)
+            logging.info('----> INFO: %s' % info_msg)
+            status = send_aprs(info_msg, full_power=True)
             logging.info('Transmission status: %s' % status)
         except KeyboardInterrupt:
             logging.info('APRS tests completed.')
             break
-        finally:
-            transceiver.stop_transmitter()
-            GPIO.cleanup()
+    p_gps.join(10)
+    p_sensors.join(10)
+    GPIO.cleanup()

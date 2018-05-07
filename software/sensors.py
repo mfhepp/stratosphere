@@ -91,7 +91,7 @@ class HTU21D():
         self.reset()
         msb, lsb, crc = self.bus.read_i2c_block_data(
             self.i2c_address, self.CMD_TRIG_HUMID_HM, 3)
-        return -6 + 125 * (msb * 256 + lsb) / 65536.0
+        return (-6 + 125 * (msb * 256 + lsb) / 65536.0) / 100.0
 
     def reset(self):
         self.bus.write_byte(self.i2c_address, self.CMD_RESET)
@@ -320,7 +320,7 @@ if __name__ == '__main__':
     logging.info('Humidity internal: %f %%' % (humidity_internal * 100))
     logging.info('Atmospheric pressure: %f hPa' % pressure)
     sensor = HTU21D(busno=1, address=config.SENSOR_ID_HUMIDITY_EXT)
-    logging.info('Humidity external: %f %%' % sensor.read_humidity())
+    logging.info('Humidity external: %f %%' % (sensor.read_humidity() * 100))
     u, i, t = get_battery_status()
     logging.info('Battery status: U=%fV, I=%fA, T=%f°C' % (u, i, t))
     raw_input('Press ENTER to start motion sensor test.')

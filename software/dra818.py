@@ -117,16 +117,15 @@ class DRA818(object):
                            parity=serial.PARITY_NONE,
                            stopbits=serial.STOPBITS_ONE,
                            timeout=1) as dra818_uart:
-            time.sleep(0.3)
+            time.sleep(1)
             dra818_uart.reset_output_buffer()
-            time.sleep(0.3)
+            time.sleep(1)
             dra818_uart.reset_input_buffer()
-            time.sleep(0.3)
+            time.sleep(2)
             for i in range(10):
                 time.sleep(1)
                 logging.info('Init command attempt %i of 10' % i)
-                response = send_command(dra818_uart,
-                                        'AT+DMOCONNECT\r\n')
+                response = send_command(dra818_uart, 'AT+DMOCONNECT\r\n')
                 if response == '+DMOCONNECT:0':
                     logging.info('Transceiver found.')
                     break
@@ -183,6 +182,8 @@ class DRA818(object):
             full_power (boolean): True sets the RF power level to the
             maximum of 1 W, False sets it to 0.5W."""
         GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(self.power_down_pin, GPIO.OUT, initial=GPIO.HIGH)
+        GPIO.output(self.power_down_pin, GPIO.HIGH)
         if full_power:
             # Set rf_power_level_pin to high impedance / floating for 1W
             GPIO.setup(self.rf_power_level_pin, GPIO.IN)
@@ -198,6 +199,8 @@ class DRA818(object):
     def stop_transmitter(self):
         """Turns off the transmitter."""
         GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(self.power_down_pin, GPIO.OUT, initial=GPIO.HIGH)
+        GPIO.output(self.power_down_pin, GPIO.HIGH)
         GPIO.setup(self.ptt_pin, GPIO.OUT, initial=GPIO.HIGH)
 # check why the GPIO status is not preserved????
         GPIO.output(self.ptt_pin, GPIO.HIGH)
@@ -218,11 +221,22 @@ class DRA818(object):
                            parity=serial.PARITY_NONE,
                            stopbits=serial.STOPBITS_ONE,
                            timeout=1) as dra818_uart:
-#            time.sleep(2)
-#            dra818_uart.reset_output_buffer()
-#            time.sleep(2)
-#            dra818_uart.reset_input_buffer()
-#            time.sleep(2)
+            time.sleep(1)
+            dra818_uart.reset_output_buffer()
+            time.sleep(1)
+            dra818_uart.reset_input_buffer()
+            time.sleep(2)
+            for i in range(10):
+                time.sleep(1)
+                logging.info('Init command attempt %i of 10' % i)
+                response = send_command(dra818_uart, 'AT+DMOCONNECT\r\n')
+                if response == '+DMOCONNECT:0':
+                    logging.info('Transceiver found.')
+                    break
+            else:
+                logging.critical("CRITICAL: Transceiver NOT found.")
+                dra818_uart.close()
+                return False
             # GROUP SETTING Command
             # T+DMOSETGROUP=GBW,TFV, RFV,Tx_CTCSS,SQ,Rx_CTCSS<CR><LF>
             command = 'AT+DMOSETGROUP=1,%3.4f,%3.4f,0000,%i,0000\r\n' \
@@ -254,11 +268,23 @@ class DRA818(object):
                            parity=serial.PARITY_NONE,
                            stopbits=serial.STOPBITS_ONE,
                            timeout=1) as dra818_uart:
-            time.sleep(2)
+            time.sleep(1)
             dra818_uart.reset_output_buffer()
-            time.sleep(2)
+            time.sleep(1)
             dra818_uart.reset_input_buffer()
             time.sleep(2)
+            for i in range(10):
+                time.sleep(1)
+                logging.info('Init command attempt %i of 10' % i)
+                response = send_command(dra818_uart,
+                                        'AT+DMOCONNECT\r\n')
+                if response == '+DMOCONNECT:0':
+                    logging.info('Transceiver found.')
+                    break
+            else:
+                logging.critical("CRITICAL: Transceiver NOT found.")
+                dra818_uart.close()
+                return False
             # GROUP SETTING Command
             # T+DMOSETGROUP=GBW,TFV, RFV,Tx_CTCSS,SQ,Rx_CTCSS<CR><LF>
             command = 'AT+DMOSETGROUP=1,%3.4f,%3.4f,0000,%i,0000\r\n' \
@@ -291,11 +317,23 @@ class DRA818(object):
                            parity=serial.PARITY_NONE,
                            stopbits=serial.STOPBITS_ONE,
                            timeout=1) as dra818_uart:
-            time.sleep(2)
+            time.sleep(1)
             dra818_uart.reset_output_buffer()
-            time.sleep(2)
+            time.sleep(1)
             dra818_uart.reset_input_buffer()
             time.sleep(2)
+            for i in range(10):
+                time.sleep(1)
+                logging.info('Init command attempt %i of 10' % i)
+                response = send_command(dra818_uart,
+                                        'AT+DMOCONNECT\r\n')
+                if response == '+DMOCONNECT:0':
+                    logging.info('Transceiver found.')
+                    break
+            else:
+                logging.critical("CRITICAL: Transceiver NOT found.")
+                dra818_uart.close()
+                return False
             # GROUP SETTING Command
             # T+DMOSETGROUP=GBW,TFV, RFV,Tx_CTCSS,SQ,Rx_CTCSS<CR><LF>
             command = 'AT+DMOSETGROUP=1,%3.4f,%3.4f,0000,%i,0000\r\n' \
@@ -338,11 +376,23 @@ class DRA818(object):
                            parity=serial.PARITY_NONE,
                            stopbits=serial.STOPBITS_ONE,
                            timeout=1) as dra818_uart:
-            time.sleep(2)
+            time.sleep(1)
             dra818_uart.reset_output_buffer()
-            time.sleep(2)
+            time.sleep(1)
             dra818_uart.reset_input_buffer()
             time.sleep(2)
+            for i in range(10):
+                time.sleep(1)
+                logging.info('Init command attempt %i of 10' % i)
+                response = send_command(dra818_uart,
+                                        'AT+DMOCONNECT\r\n')
+                if response == '+DMOCONNECT:0':
+                    logging.info('Transceiver found.')
+                    break
+            else:
+                logging.critical("CRITICAL: Transceiver NOT found.")
+                dra818_uart.close()
+                return False
             # Note: On = 0, Off = 0, so we use int(not <boolean>)
             command = 'AT+SETFILTER=%1i,%1i,%1i\r\n' \
                       % (int(not pre_emphasis),

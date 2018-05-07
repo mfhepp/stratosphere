@@ -6,6 +6,7 @@
 import logging
 import time
 import os
+import subprocess
 import RPi.GPIO as GPIO
 import config
 
@@ -114,5 +115,5 @@ def disable_usv_charging():
     """Turns of the charging of the S.USV backup power supply, because we
     do not want to charge this emergency unit from the onboard batteries
     during flight."""
-# TBD
-    return False
+    subprocess.call('sudo i2cset -y 1 0x0f 0x29', shell=True)
+

@@ -61,20 +61,19 @@ def sensors_handler():
     while sensors_active.value:
         try:
             start_time = time.time()
-            internal_temp.value = sensors.get_temperature_DS18B20(sensor_id='')
-            external_temp.value = sensors.get_temperature_DS18B20(sensor_id='')
+            internal_temp.value = sensors.get_temperature_DS18B20(
+                sensor_id=config.SENSOR_ID_INTERNAL_TEMP)
+            external_temp.value = sensors.get_temperature_DS18B20(
+                sensor_id=config.SENSOR_ID_EXTERNAL_TEMP)
             external_temp_ADC.value = sensors.get_temperature_external()
-            humidity_internal.value = sensors.get_humidity(
-                sensor=SENSOR_ID_HUMIDITY_INT)
-            humidity_external.value = sensors.get_humidity(
-                sensor=SENSOR_ID_HUMIDITY_EXT)
-            atmospheric_pressure.value = sensors.get_pressure()
-            battery_voltage, discharge_current, \
-                battery_temperature = sensors.get_battery_status()
-            battery_voltage.value = battery_voltage
-            discharge_current.value = discharge_current
-            battery_temp.value = battery_temperature
+            battery_voltage.value, discharge_current.value,\
+                battery_temp.value = sensors.get_battery_status()
             cpu_temp.value = sensors.get_temperature_cpu()
+            atmospheric_pressure.value, humidity_internal.value =\
+                sensors.get_pressure_internal_humidity()
+            sensor = sensors.HTU21D(busno=1,
+                                    address=config.SENSOR_ID_HUMIDITY_EXT)
+            humidity_external.value = sensor.read_humidity()
             delay = 1.0 / config.SENSOR_POLL_RATE - (time.time() - start_time)
             if delay > 0:
                 time.sleep(delay)
@@ -118,12 +117,8 @@ def shutdown():
 def main():
     """Main probe functionality."""
     logging.info("Stratosphere 2018 system started.")
-#TODO: Turn off S.USV charging!
-    status = utility.disable_usv_charging()
-    if status:
-        logging.info('S.USV charging disabled.')
-    else:
-        logging.error('ERROR: S.USV charging not disabled.')
+    utility.disable_usv_charging()
+    logging.info('S.USV charging disabled.')
     # Set up data, GPS, NMEA and motion/DoF loggers
     gps_path = os.path.join(config.USB_DIR + config.DATA_DIR + 'gps.csv')
     gps_handler = logging.FileHandler(gps_path)
@@ -204,8 +199,7 @@ def main():
     # Initialize GPS subprocess / thread
     continue_gps.value = 1
     p_gps = mp.Process(target=gps_info.update_gps_info,
-                       args=(timestamp, altitude, latitude, longitude,
-                             gps_logger, nmea_logger))
+                       args=(gps_logger, nmea_logger))
     p_gps.start()
     # Wait for valid GPS position and time, and sync time
     logging.info('Waiting for valid initial GPS position.')
