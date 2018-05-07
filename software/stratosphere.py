@@ -5,6 +5,7 @@
 
 import logging
 import os
+import subprocess
 import time
 import datetime
 import random
@@ -89,6 +90,12 @@ def sensors_handler():
 
 def shutdown(real_shutdown=True):
     """Graceful shutdown sequence."""
+    global cam_top
+    global p_gps
+    global p_imu
+    global p_sensors
+    global p_camera
+    global transceiver
     logging.info('Starting shut down sequence now.')
     try:
         transceiver.stop_transmitter()
