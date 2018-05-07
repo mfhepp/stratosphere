@@ -117,13 +117,13 @@ class DRA818(object):
                            parity=serial.PARITY_NONE,
                            stopbits=serial.STOPBITS_ONE,
                            timeout=1) as dra818_uart:
-            time.sleep(1)
+            time.sleep(0.3)
             dra818_uart.reset_output_buffer()
-            time.sleep(1)
+            time.sleep(0.3)
             dra818_uart.reset_input_buffer()
-            time.sleep(2)
+            time.sleep(1)
             for i in range(10):
-                time.sleep(1)
+                time.sleep(0.5)
                 logging.info('Init command attempt %i of 10' % i)
                 response = send_command(dra818_uart, 'AT+DMOCONNECT\r\n')
                 if response == '+DMOCONNECT:0':
@@ -221,13 +221,13 @@ class DRA818(object):
                            parity=serial.PARITY_NONE,
                            stopbits=serial.STOPBITS_ONE,
                            timeout=1) as dra818_uart:
-            time.sleep(1)
+            time.sleep(0.3)
             dra818_uart.reset_output_buffer()
-            time.sleep(1)
+            time.sleep(0.3)
             dra818_uart.reset_input_buffer()
-            time.sleep(2)
+            time.sleep(1)
             for i in range(10):
-                time.sleep(1)
+                time.sleep(0.5)
                 logging.info('Init command attempt %i of 10' % i)
                 response = send_command(dra818_uart, 'AT+DMOCONNECT\r\n')
                 if response == '+DMOCONNECT:0':
@@ -268,13 +268,13 @@ class DRA818(object):
                            parity=serial.PARITY_NONE,
                            stopbits=serial.STOPBITS_ONE,
                            timeout=1) as dra818_uart:
-            time.sleep(1)
+            time.sleep(0.3)
             dra818_uart.reset_output_buffer()
-            time.sleep(1)
+            time.sle3ep(0.3)
             dra818_uart.reset_input_buffer()
-            time.sleep(2)
+            time.sleep(1)
             for i in range(10):
-                time.sleep(1)
+                time.sleep(0.5)
                 logging.info('Init command attempt %i of 10' % i)
                 response = send_command(dra818_uart,
                                         'AT+DMOCONNECT\r\n')
@@ -317,13 +317,13 @@ class DRA818(object):
                            parity=serial.PARITY_NONE,
                            stopbits=serial.STOPBITS_ONE,
                            timeout=1) as dra818_uart:
-            time.sleep(1)
+            time.sleep(0.3)
             dra818_uart.reset_output_buffer()
-            time.sleep(1)
+            time.sleep(0.3)
             dra818_uart.reset_input_buffer()
-            time.sleep(2)
+            time.sleep(1)
             for i in range(10):
-                time.sleep(1)
+                time.sleep(0.5)
                 logging.info('Init command attempt %i of 10' % i)
                 response = send_command(dra818_uart,
                                         'AT+DMOCONNECT\r\n')
@@ -376,13 +376,13 @@ class DRA818(object):
                            parity=serial.PARITY_NONE,
                            stopbits=serial.STOPBITS_ONE,
                            timeout=1) as dra818_uart:
-            time.sleep(1)
+            time.sleep(0.3)
             dra818_uart.reset_output_buffer()
-            time.sleep(1)
+            time.sleep(0.3)
             dra818_uart.reset_input_buffer()
-            time.sleep(2)
+            time.sleep(1)
             for i in range(10):
-                time.sleep(1)
+                time.sleep(0.5)
                 logging.info('Init command attempt %i of 10' % i)
                 response = send_command(dra818_uart,
                                         'AT+DMOCONNECT\r\n')
@@ -441,7 +441,7 @@ class DRA818(object):
             for audio_file_path in audio_files:
                 logging.debug('WAV path: %s' % audio_file_path)
                 status = status and _play_audio_file(audio_file_path)
-            time.sleep(1)
+            time.sleep(0.5)
             self.stop_transmitter()
         finally:
             self.stop_transmitter()
