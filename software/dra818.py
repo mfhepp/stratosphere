@@ -130,7 +130,7 @@ class DRA818(object):
                     logging.info('Transceiver found.')
                     break
             else:
-                logging.critical("CRITICAL: Transceiver NOT found.")
+                logging.warning('CRITICAL: Transceiver NOT found.')
                 dra818_uart.close()
                 raise DRA818_Error
 
@@ -152,7 +152,7 @@ class DRA818(object):
             if response == '+DMOSETGROUP:0':
                 logging.info('Transceiver initialization OK.')
             else:
-                logging.debug('ERROR: Transceiver init failed.')
+                logging.warning('ERROR: Transceiver init failed.')
                 dra818_uart.close()
                 raise DRA818_Error
 
@@ -169,7 +169,7 @@ class DRA818(object):
             if response == '+DMOSETFILTER:0':
                 logging.info('Transceiver filter configuration OK.')
             else:
-                logging.debug('ERROR: Transceiver filter \
+                logging.warning('ERROR: Transceiver filter \
                                configuration failed.')
                 dra818_uart.close()
                 raise DRA818_Error
@@ -234,7 +234,7 @@ class DRA818(object):
                     logging.info('Transceiver found.')
                     break
             else:
-                logging.critical("CRITICAL: Transceiver NOT found.")
+                logging.warning('CRITICAL: Transceiver NOT found.')
                 dra818_uart.close()
                 return False
             # GROUP SETTING Command
@@ -249,7 +249,7 @@ class DRA818(object):
                 dra818_uart.close()
                 return True
             else:
-                logging.debug('ERROR: Setting Tx frequency failed.')
+                logging.warning('ERROR: Setting Tx frequency failed.')
                 self.tx_frequency = frequency_old
                 dra818_uart.close()
                 return False
@@ -282,7 +282,7 @@ class DRA818(object):
                     logging.info('Transceiver found.')
                     break
             else:
-                logging.critical("CRITICAL: Transceiver NOT found.")
+                logging.warning('CRITICAL: Transceiver NOT found.')
                 dra818_uart.close()
                 return False
             # GROUP SETTING Command
@@ -297,7 +297,7 @@ class DRA818(object):
                 dra818_uart.close()
                 return True
             else:
-                logging.debug('ERROR: Setting Rx frequency failed.')
+                logging.warning('ERROR: Setting Rx frequency failed.')
                 self.rx_frequency = frequency_old
                 dra818_uart.close()
                 return False
@@ -331,7 +331,7 @@ class DRA818(object):
                     logging.info('Transceiver found.')
                     break
             else:
-                logging.critical("CRITICAL: Transceiver NOT found.")
+                logging.warning('CRITICAL: Transceiver NOT found.')
                 dra818_uart.close()
                 return False
             # GROUP SETTING Command
@@ -346,7 +346,7 @@ class DRA818(object):
                 dra818_uart.close()
                 return True
             else:
-                logging.debug('ERROR: Setting squelch level failed.')
+                logging.warning('ERROR: Setting squelch level failed.')
                 self.squelch_level = squelch_old
                 dra818_uart.close()
                 return False
@@ -390,7 +390,7 @@ class DRA818(object):
                     logging.info('Transceiver found.')
                     break
             else:
-                logging.critical("CRITICAL: Transceiver NOT found.")
+                logging.warning('CRITICAL: Transceiver NOT found.')
                 dra818_uart.close()
                 return False
             # Note: On = 0, Off = 0, so we use int(not <boolean>)
@@ -404,7 +404,7 @@ class DRA818(object):
                 dra818_uart.close()
                 return True
             else:
-                logging.debug('ERROR: Transceiver filter \
+                logging.warning('ERROR: Transceiver filter \
                               configuration failed.')
                 dra818_uart.close()
                 return False
@@ -437,7 +437,7 @@ class DRA818(object):
             self.start_transmitter(full_power=full_power)
             time.sleep(1)
             status = True
-            logging.debug('WAV list: %s' % audio_files)
+            logging.info('WAV list: %s' % audio_files)
             for audio_file_path in audio_files:
                 logging.debug('WAV path: %s' % audio_file_path)
                 status = status and _play_audio_file(audio_file_path)

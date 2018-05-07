@@ -34,8 +34,8 @@ def set_to_flight_mode(uart, baudrate):
         uart (str): The path of the GPS UART.
 
         baudrate (int): The GPS baudrate (4800 or 9600)."""
-    logging.debug('Sending flight mode commands to GPS at %s' % uart +
-                  'with baud rate %d.' % baudrate)
+    logging.info('Sending flight mode commands to GPS at %s' % uart +
+                 'with baud rate %d.' % baudrate)
     # Command sequence taken from https://ukhas.org.uk/guides:ublox6
     flight_command = [
         0xB5, 0x62, 0x06, 0x24, 0x24, 0x00, 0xFF, 0xFF,
@@ -96,7 +96,7 @@ def get_info(uart, baudrate, nmea_logger=None):
         while True:
             line = ser.readline()
             if nmea_logger is not None:
-                nmea_logger.debug('NMEA: %s, %s' % (
+                nmea_logger.info('NMEA: %s, %s' % (
                     datetime.datetime.utcnow().isoformat(), line.strip()))
             else:
                 logging.debug('NMEA: %s, %s' % (
@@ -143,7 +143,7 @@ def update_gps_info(gps_logger=None, nmea_logger=None):
                     # os.system("sudo date --set '%s' > /dev/null 2>&1" %
                     os.system("sudo date --set '%s' > /dev/null" %
                               timestamp.value)
-                    logging.debug('System time updated from GPS.')
+                    logging.info('System time updated from GPS.')
                 except Exception as msg_time:
                     logging.error('Could not set the system time.')
                     logging.exception(msg_time)

@@ -192,6 +192,8 @@ def send_aprs(aprs_info, frequency=config.APRS_FREQUENCY,
             os.remove(fn)
         except OSError:
             pass
+    except Exception as msg:
+        logging.exception(msg)
     finally:
         transceiver.stop_transmitter()
     return status

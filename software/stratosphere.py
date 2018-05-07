@@ -14,6 +14,9 @@ import utility
 import sensors
 import gps_info
 import camera
+import dra818
+import aprs
+from PIL import Image, ImageDraw, ImageFont
 from shared_memory import *
 
 
@@ -25,19 +28,20 @@ def camera_handler():
             if utility.check_free_disk_space(
                     minimum=config.VIDEO_RECORDING_DISK_SPACE_MINIMUM):
                 logging.info('Starting main camera recording, d = 60 sec.')
-                fn_video = InternalCamera.video_recording(
+                fn_video = camera.InternalCamera.video_recording(
                     duration=60, preview=True)
                 logging.info('Main camera recording saved to %s.' % fn_video)
             else:
                 logging.warning('WARNING: Less than 4 GB disk space, ' +
                                 'video recording skipped')
             logging.info('Main camera still image capture started.')
-            fn_still = InternalCamera.take_snapshot()
+            fn_still = camera.InternalCamera.take_snapshot()
             logging.info('Main camera still image saved to %s.' % fn_still)
             # Take SSTV still image with larger font and different text
             fn_sstv = camera.InternalCamera.take_snapshot(annotate=False)
             logging.info('SSTV image saved to %s.' % fn_sstv)
-            fn_sstv_final = resize_image(fn_sstv, protocol=config.SSTV_MODE)
+            fn_sstv_final = sstv.resize_image(fn_sstv,
+                                              protocol=config.SSTV_MODE)
             image = Image.open(open(fn_sstv_final, 'rb'))
             text_field = ImageDraw.Draw(image)
             font = ImageFont.truetype(
@@ -81,7 +85,7 @@ def sensors_handler():
             logging.exception(msg)
 
 
-def shutdown():
+def shutdown(real_shutdown=True):
     """Graceful shutdown sequence."""
     logging.info('Starting shut down sequence now.')
     transceiver.stop_transmitter()
@@ -110,8 +114,9 @@ def shutdown():
     logging.info('Waiting for main camera process.')
     p_camera.join(90)
     logging.info('Done.')
-    logging.info('Sending "sudo shutdown -h now".')
-    subprocess.call('sudo shutdown -h now', shell=True)
+    if real_shutdown:
+        logging.info('Sending "sudo shutdown -h now".')
+        subprocess.call('sudo shutdown -h now', shell=True)
 
 
 def main():
@@ -136,7 +141,7 @@ def main():
 
     data_path = os.path.join(config.USB_DIR + config.DATA_DIR + 'data.csv')
     data_handler = logging.FileHandler(data_path)
-    data_logger = logging.getLogger('gps')
+    data_logger = logging.getLogger('data')
     data_logger.setLevel(logging.DEBUG)
     data_logger.addHandler(data_handler)
     data_logger.propagate = False
@@ -223,22 +228,24 @@ def main():
     p_camera = mp.Process(target=camera_handler)
     p_camera.start()
     logging.info('Main camera OK.')
-    logging.info('Sending APRS telemetry definitions.')
-    telemetry_definition = aprs.generate_aprs_telemetry_definition()
-    status = aprs.send_aprs(telemetry_definition,
-                            full_power=config.APRS_FULL_POWER)
+    logging.info('Sending four telemetry definition messages.')
+    status = aprs.send_telemetry_definitions(full_power=config.APRS_FULL_POWER)
     if status:
         logging.info('OK: APRS telemetry definitions.')
     else:
         logging.error('ERROR: Problem sending APRS telemetry definitions.')
     logging.info('Sending initial APRS position report.')
-    status = send_aprs(transceiver,
-                       generate_aprs_position(telemetry=False),
-                       full_power=config.APRS_FULL_POWER)
-    logging.info('APRS transmission status: %s' % status)
+    status = aprs.send_aprs(main.generate_aprs_position(telemetry=False),
+                            full_power=config.APRS_FULL_POWER)
+    if status:
+        logging.info('OK: Initial APRS packet sent.')
+    else:
+        logging.error('ERROR: Problem sending initial APRS packet.')
     # Set up and start external camera
     logging.info('Waiting for top camera boot-up delay.')
-    time.sleep(30)
+    for i in range(30):
+        logging.info('%i sec' % i)
+        time.sleep(1)
     # Start external camera unit.
     # TBD: Add wait for acknowledgment.
     # Problem is that it is hard to check whether the camera unit is
@@ -270,131 +277,139 @@ def main():
     logging.info('\tsstv_counter' % sstv_counter)
     GPIO.output(config.SPARE_STATUS_LED_PIN, False)
     while True:
-        start_time = time.time()
-        # Write data with gps to data logger
-        # timestamp, lat, latD, long, longD, altitude,
-        # temp_int, temp_ext, temp_adc,
-        # humidity_int, humidity_ext, pressure, temp_cpu,
-        # batt_voltage, batt_current, batt_temp,
-        # cpu_temp
-        data_message = '%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,\
-         %s, %s, %s, %s, %s' % (
-            datetime.datetime.utcnow().isoformat(),
-            latitude.value,
-            latitude_direction.value,
-            longitude.value,
-            longitude_direction.value,
-            altitude.value,
-            internal_temp.value,
-            external_temp.value,
-            external_temp_ADC.value,
-            humidity_internal.value,
-            humidity_external.value,
-            atmospheric_pressure.value,
-            battery_voltage.value,
-            discharge_current.value,
-            battery_temp.value,
-            cpu_temp.value
-        )
-        datalogger.info(data_message)
-        # Send APRS beacon
-        # Delay tx by random number of 0..10 secs in order to minimize
-        # collisions on the APRS frequency
-        time.sleep(random.random * 10)
-        if aprs_meta_data_counter <= 0:
-            logging.info('Sensing APRS telemetry definitions.')
-            # Send APRS meta-data (only every n-th cycle)
-            telemetry_definition = aprs.generate_aprs_telemetry_definition()
-            aprs.send_aprs(telemetry_definition,
-                           full_power=config.APRS_FULL_POWER)
-            aprs_meta_data_counter = config.APRS_META_DATA_RATE
-        else:
-            aprs_meta_data_counter -= 1
-        if aprs_counter <= 0:
-            # Send APRS position and telemetry data (only every n-th cycle)
-            # We need to update the following two variables manually
-            logging.info('Sending APRS position with telemetry.')
-            cam_top_recording.value = int(cam_top.get_recording_status())
-            # cam_bottom_recording.value = int(cam_bottom.get_recording_status())
-            aprs_position_msg = aprs.generate_aprs_position(telemetry=True)
-            aprs.send_aprs(aprs_position_msg,
-                           full_power=config.APRS_FULL_POWER)
-            aprs_counter = config.APRS_RATE
-        else:
-            aprs_counter -= 1
-        if sstv_active and sstv_counter <= 0:
-            # Send audio beacon
-            if beacon_counter <= 0:
-                logging.info('Sending audio beacon.')
-                transceiver.transmit_audio_file(
-                    config.SSTV_FREQUENCY,
-                    [config.AUDIO_BEACON], full_power=False)
-                beacon_counter = 0
+        try:
+            start_time = time.time()
+            # Write data with gps to data logger
+            # timestamp, lat, latD, long, longD, altitude,
+            # temp_int, temp_ext, temp_adc,
+            # humidity_int, humidity_ext, pressure, temp_cpu,
+            # batt_voltage, batt_current, batt_temp,
+            # cpu_temp
+            data_message = '%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,\
+             %s, %s, %s, %s, %s' % (
+                datetime.datetime.utcnow().isoformat(),
+                latitude.value,
+                latitude_direction.value,
+                longitude.value,
+                longitude_direction.value,
+                altitude.value,
+                internal_temp.value,
+                external_temp.value,
+                external_temp_ADC.value,
+                humidity_internal.value,
+                humidity_external.value,
+                atmospheric_pressure.value,
+                battery_voltage.value,
+                discharge_current.value,
+                battery_temp.value,
+                cpu_temp.value
+            )
+            datalogger.info(data_message)
+            # Send APRS beacon
+            # Delay tx by random number of 0..10 secs in order to minimize
+            # collisions on the APRS frequency
+            time.sleep(random.random * 10)
+            if aprs_meta_data_counter <= 0:
+                logging.info('Sending four APRS telemetry definitions.')
+                # Send APRS meta-data (only every n-th cycle)
+                status = aprs.send_telemetry_definitions(
+                    full_power=config.APRS_FULL_POWER)
+                logging.info('Transmission status: %s' % status)
+                aprs_meta_data_counter = config.APRS_META_DATA_RATE
             else:
-                beacon_counter -= 1
-            time.sleep(5)
-            fn = last_sstv_image.value
-            logging.info('Sending SSTV file %s.' % fn)
-            if os.path.exists(fn):
-                send_sstv(transceiver, config.SSTV_FREQUENCY,
-                          fn, protocol=config.SSTV_MODE)
-        # Check free disk space and shutdown processes if needed
-        # If less than 2 GB, turn off main camera thread
-        if utility.check_free_disk_space(minimum=2 * 1024**3):
-            main_camera_active.value = 0
-            # maybe also shutdown system, but difficult to test
-        # Check battery status and shutdown / reduce operation
-        u, i, t = sensors.get_battery_status()
-        if u < BATTERY_VOLTAGE_SAVE_ENERGY:
-            logging.warning('Battery voltage low (%.2fV), turning off SSTV.')
-            sstv_active = False
-
-        if u < BATTERY_VOLTAGE_SYSTEM_SHUTDOWN:
-            logging.error('Battery voltage VERY LOW (%.2fV), shutting down.')
-# RISK: If battery voltage sensor is defective, system will be shut down.
-# So disabled right now.
-#            shutdown()
-        # Monitor shutdown switch
-        GPIO.setmode(GPIO.BOARD)
-        switch = GPIO.input(config.POWER_BUTTON_PIN)
-        if not switch:
-            counter = 0
-            logging.info('Power-down switch detected.')
-            while not GPIO.input(config.POWER_BUTTON_PIN):
-                counter += 1
+                aprs_meta_data_counter -= 1
+            if aprs_counter <= 0:
+                # Send APRS position and telemetry data (only every n-th cycle)
+                # We need to update the following two variables manually
+                logging.info('Sending APRS position with telemetry.')
+                cam_top_recording.value = int(cam_top.get_recording_status())
+                # cam_bottom_recording.value = int(cam_bottom.get_recording_status())
+                aprs_position_msg = aprs.generate_aprs_position(telemetry=True)
+                aprs.send_aprs(aprs_position_msg,
+                               full_power=config.APRS_FULL_POWER)
+                aprs_counter = config.APRS_RATE
+            else:
+                aprs_counter -= 1
+            if sstv_active and sstv_counter <= 0:
+                # Send audio beacon
+                if beacon_counter <= 0:
+                    logging.info('Sending audio beacon.')
+                    transceiver.transmit_audio_file(
+                        config.SSTV_FREQUENCY,
+                        [config.AUDIO_BEACON], full_power=False)
+                    beacon_counter = 0
+                else:
+                    beacon_counter -= 1
+                time.sleep(5)
+                fn = last_sstv_image.value
+                logging.info('Sending SSTV file %s.' % fn)
+                if os.path.exists(fn):
+                    send_sstv(transceiver, config.SSTV_FREQUENCY,
+                              fn, protocol=config.SSTV_MODE)
+            # Check free disk space and shutdown processes if needed
+            # If less than 2 GB, turn off main camera thread
+            if utility.check_free_disk_space(minimum=2 * 1024**3):
+                main_camera_active.value = 0
+                # maybe also shutdown system, but difficult to test
+            # Check battery status and shutdown / reduce operation
+            u, i, t = sensors.get_battery_status()
+            if u < BATTERY_VOLTAGE_SAVE_ENERGY:
+                logging.warning(
+                    'Battery voltage low (%.2fV), turning off SSTV.' % u)
+                sstv_active = False
+            if u < BATTERY_VOLTAGE_SYSTEM_SHUTDOWN:
+                logging.error(
+                    'Battery voltage VERY LOW (%.2fV), [shutting down].' % u)
+    # RISK: If battery voltage sensor is defective, system will be shut down.
+    # So disabled right now.
+    #            shutdown()
+            # Monitor shutdown switch
+            GPIO.setmode(GPIO.BOARD)
+            switch = GPIO.input(config.POWER_BUTTON_PIN)
+            if not switch:
+                counter = 0
+                logging.info('Power-down switch detected.')
+                while not GPIO.input(config.POWER_BUTTON_PIN):
+                    counter += 1
+                    time.sleep(0.1)
+                    if counter > 50:
+                        shutdown()
+                counter = 0
+            else:
                 time.sleep(0.1)
-                if counter > 50:
-                    shutdown()
-            counter = 0
-        else:
-            time.sleep(0.1)
-        logging.info('Power switch status: %s [CTRL-C to stop]' % switch)
-# TODO
-        # TBD: Also check SUV status
-        # Wait for remaining time of the cycle
-        delay = config.CYCLE_DURATION - (time.time() - start_time)
-        if delay > 0:
-            GPIO.output(config.SPARE_STATUS_LED_PIN, True)
-            time.sleep(delay)
-            GPIO.output(config.SPARE_STATUS_LED_PIN, False)
-        else:
-            logging.info('Warning: Transmissions exceed duration of cycle.')
-    # cleanup
-    # turn off transmitter
-    # gpio
+            logging.info('Power switch status: %s [CTRL-C to stop]' % switch)
+    # TODO
+            # TBD: Also check SUV status
+            # Wait for remaining time of the cycle
+            delay = config.CYCLE_DURATION - (time.time() - start_time)
+            if delay > 0:
+                GPIO.output(config.SPARE_STATUS_LED_PIN, True)
+                time.sleep(delay)
+                GPIO.output(config.SPARE_STATUS_LED_PIN, False)
+            else:
+                logging.info('Warning: Transmissions > duration of cycle.')
+        except KeyboardInterrupt:
+            print 'CTRL-C detected. Shutting down threads.'
+            shutdown(real_shutdown=False)
+            break
+        finally:
+            transceiver.stop_transmitter()
+            GPIO.cleanup()
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     # Check that USB media is available, writeable, and with sufficient
     # capacity
     utility.check_and_initialize_USB()
-    # Configure main logging
+    """    # Configure main logging
     FORMAT = '%(asctime)-15s %(levelname)10s:  %(message)s'
     logging.basicConfig(filename=os.path.join(
-        config.USB_DIR, 'main.log'), level=logging.DEBUG, format=FORMAT)
+        config.USB_DIR, 'logfiles/main.log'), level=logging.DEBUG,
+        format=FORMAT)
     # Log to standard output as well
     std_logger = logging.StreamHandler()
     std_logger.setFormatter(logging.Formatter(FORMAT))
-    logging.getLogger().addHandler(std_logger)
+    logging.getLogger().addHandler(std_logger)"""
     main()
 

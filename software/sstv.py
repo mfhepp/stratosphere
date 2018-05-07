@@ -41,7 +41,7 @@ def convert_image_to_sstv_wav(image_path, protocol='r36', rate=22050):
     if os.path.isfile(image_path):
         command = "./pisstvpp/pisstvpp -p %s -r%s %s" % \
                   (protocol, rate, image_path)
-        logging.debug('Command: %s' % command)
+        logging.info('PiSSTV Command: %s' % command)
         return_code = subprocess.call(command, shell=True)
         if return_code == 0:
             return image_path + '.wav'
@@ -110,7 +110,7 @@ def send_sstv(transceiver, frequency, image_path,
     wav = convert_image_to_sstv_wav(image_path,
                                     protocol=protocol,
                                     rate=22050)
-    logging.debug('Return of SSTV: %s' % wav)
+    logging.info('Return of SSTV: %s' % wav)
     if wav is not None:
         status = transceiver.transmit_audio_file(frequency, [wav],
                                                  full_power=False)
