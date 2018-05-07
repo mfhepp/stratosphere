@@ -90,14 +90,21 @@ def check_and_initialize_USB():
         os.system('sudo shutdown -h now')
 
 
-def check_free_disk_space():
-    """Checks whether the USB drive has sufficient free space."""
+def check_free_disk_space(minimum=None):
+    """Checks whether the USB drive has sufficient free space.
+
+    Args:
+        minimum (int): The minimum in bytes.
+        If None, config.DISK_SPACE_MINIMUM will be used.
+    """
     # http://stackoverflow.com/questions/4260116/find-size-and-free-space-of-the-filesystem-containing-a-given-file
+    if minimum is None:
+        minimum = config.DISK_SPACE_MINIMUM
     st = os.statvfs(config.USB_DIR)
     free = st.f_bavail * st.f_frsize
     logging.info('Available space on USB stick: %s GB ' %
                  format(float(free) / (1024 * 1024 * 1024), ','))
-    if free > config.DISK_SPACE_MINIMUM:
+    if free > minimum:
         return True
     else:
         return False

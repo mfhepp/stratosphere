@@ -367,7 +367,7 @@ def generate_aprs_telemetry_definition(target_station=config.APRS_SSID):
     parameters_equation_coefficients_message = \
         ':{}:EQNS.{},{},{},{},{}'.format(
             target_station.ljust(9, ' '), c1, c2, c3, c4, c5)
-    bit_sense_project_name_message = ':%s:BITS.11111000,%s' % \
+    bit_sense_project_name_message = ':%s:BITS.11111111,%s' % \
         (target_station.ljust(9, ' '), config.APRS_COMMENT[:22])
     return [parameters_name_message, parameters_unit_message,
             parameters_equation_coefficients_message,
@@ -377,7 +377,23 @@ def generate_aprs_telemetry_definition(target_station=config.APRS_SSID):
 if __name__ == '__main__':
     global sequence_number
     logging.basicConfig(level=logging.INFO)
-    # Fetching single valid GPS position
+    # Initialize GPS subprocess / thread
+    continue_gps.value = 1
+    p_gps = mp.Process(target=gps_info.update_gps_info,
+                       args=(timestamp, altitude, latitude, longitude,
+                             gps_logger, nmea_logger))
+    p_gps.start()
+    # Wait for valid GPS position and time, and sync time
+    logging.info('Waiting for valid initial GPS position.')
+    while longitude_outdated.value > 0 or latitude_outdated.value > 0:
+        time.sleep(1)
+    # Initialize sensors thread
+    sensors_active.value = 1
+    logging.info('Starting sensors logging.')
+    p_sensors = mp.Process(target=sensors_handler)
+    p_sensors.start()
+    logging.info('Sensors logging OK.')
+    """# Fetching single valid GPS position
     uart = config.GPS_SERIAL_PORT
     baudrate = config.GPS_SERIAL_PORT_BAUDRATE
     logging.info('GPS found at %s with %i baud' % (uart, baudrate))
@@ -388,7 +404,8 @@ if __name__ == '__main__':
     latitude_direction.value = msg.lat_dir
     longitude.value = float(msg.longitude)
     longitude_direction.value = msg.lon_dir
-    logging.info('Shared memory variables initialized.')
+   logging.info('Shared memory variables initialized.')
+    """
     logging.info('Testing APRS functions.')
     import aprslib
     logging.info('Now generating and parsing APRS messages.')

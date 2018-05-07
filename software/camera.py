@@ -243,7 +243,7 @@ class InternalCamera(object):
                 else:
                     camera.annotate_text_size = config.TEXT_SIZE
                 camera.annotate_text = config.IMAGE_TEXT % {
-                    "time": timestamp.value,
+                    "time": datetime.datetime.utcnow().isoformat(),
                     "alt": altitude.value,
                     "lat": latitude.value,
                     "lon": longitude.value}
