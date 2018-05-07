@@ -90,7 +90,10 @@ def sensors_handler():
 def shutdown(real_shutdown=True):
     """Graceful shutdown sequence."""
     logging.info('Starting shut down sequence now.')
-    transceiver.stop_transmitter()
+    try:
+        transceiver.stop_transmitter()
+    except Exception as msg:
+        logging.exception(msg)
     # Shut down threads gracefully
     continue_gps.value = 0
     main_camera_active.value = 0
@@ -123,6 +126,9 @@ def shutdown(real_shutdown=True):
 
 def main():
     """Main probe functionality."""
+    global cam_top
+    global cam_bottom
+    global transceiver
     logging.info("Stratosphere 2018 system started.")
     utility.disable_usv_charging()
     logging.info('S.USV charging disabled.')
@@ -241,10 +247,18 @@ def main():
         status = aprs.send_aprs(aprs.generate_aprs_position(telemetry=True),
                                 full_power=config.APRS_FULL_POWER)
         if status:
-            logging.info('OK: Initial APRS packet sent. [%i of 3]' % i + 1)
+            logging.info('OK: Initial APRS packet sent. [%i of 3]' % (i + 1))
         else:
             logging.error('ERROR: Problem sending initial APRS packet.')
         time.sleep(2)
+    # SSTV Test
+    fn = last_sstv_image.value.strip()
+    logging.info('Sending SSTV file %s.' % fn)
+    if os.path.exists(fn):
+        sstv.send_sstv(transceiver, config.SSTV_FREQUENCY, fn,
+                       protocol=config.SSTV_MODE)
+    else:
+        logging.warning('SSTV file not found.')
     # Set up and start external camera
     logging.info('Waiting for top camera boot-up delay.')
 # TODO
@@ -349,20 +363,23 @@ def main():
                 fn = last_sstv_image.value.strip()
                 logging.info('Sending SSTV file %s.' % fn)
                 if os.path.exists(fn):
-                    send_sstv(transceiver, config.SSTV_FREQUENCY,
-                              fn, protocol=config.SSTV_MODE)
+                    sstv.send_sstv(transceiver, config.SSTV_FREQUENCY,
+                                   fn, protocol=config.SSTV_MODE)
+                sstv_counter = config.SSTV_RATE
+            else:
+                sstv_counter -= 1
             # Check free disk space and shutdown processes if needed
             # If less than 2 GB, turn off main camera thread
-            if utility.check_free_disk_space(minimum=2 * 1024**3):
+            if not utility.check_free_disk_space(minimum=2 * 1024**3):
                 main_camera_active.value = 0
                 # maybe also shutdown system, but difficult to test
             # Check battery status and shutdown / reduce operation
             u, i, t = sensors.get_battery_status()
-            if u < BATTERY_VOLTAGE_SAVE_ENERGY:
+            if u < config.BATTERY_VOLTAGE_SAVE_ENERGY:
                 logging.warning(
                     'Battery voltage low (%.2fV), turning off SSTV.' % u)
                 sstv_active = False
-            if u < BATTERY_VOLTAGE_SYSTEM_SHUTDOWN:
+            if u < config.BATTERY_VOLTAGE_SYSTEM_SHUTDOWN:
                 logging.error(
                     'Battery voltage VERY LOW (%.2fV), [shutting down].' % u)
     # RISK: If battery voltage sensor is defective, system will be shut down.
@@ -370,6 +387,8 @@ def main():
     #            shutdown()
             # Monitor shutdown switch
             GPIO.setmode(GPIO.BOARD)
+            GPIO.setup(config.POWER_BUTTON_PIN, GPIO.IN,
+                       pull_up_down=GPIO.PUD_UP)
             switch = GPIO.input(config.POWER_BUTTON_PIN)
             if not switch:
                 counter = 0
@@ -387,7 +406,10 @@ def main():
             # TBD: Also check SUV status
             # Wait for remaining time of the cycle
             delay = config.CYCLE_DURATION - (time.time() - start_time)
+            GPIO.setmode(GPIO.BOARD)
+            GPIO.setup(config.SPARE_STATUS_LED_PIN, GPIO.OUT)
             if delay > 0:
+                logging.info('Waiting %.1f s to complete cycle.' % delay)
                 GPIO.output(config.SPARE_STATUS_LED_PIN, True)
                 time.sleep(delay)
                 GPIO.output(config.SPARE_STATUS_LED_PIN, False)

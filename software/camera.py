@@ -146,6 +146,8 @@ class ExternalCamera(object):
             False: Not currently recording
         """
         GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(self.camera_recording_status_pin, GPIO.IN,
+                   pull_up_down=GPIO.PUD_UP)
         return GPIO.input(self.camera_recording_status_pin)
 
 
