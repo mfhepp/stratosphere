@@ -441,7 +441,10 @@ class DRA818(object):
             logging.info('WAV list: %s' % audio_files)
             for audio_file_path in audio_files:
                 logging.debug('WAV path: %s' % audio_file_path)
-                status = status and _play_audio_file(audio_file_path)
+                status_2 = _play_audio_file(audio_file_path)
+
+                logging.info('-->DEBUG: status = %s, status_2 = %s, type(status) = %s, type(status_2) = %s' % (status, status_2, type(status), type(status_2)))
+                status = status and status_2
             time.sleep(0.5)
             self.stop_transmitter()
         finally:

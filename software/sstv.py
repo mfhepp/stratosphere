@@ -39,7 +39,7 @@ def convert_image_to_sstv_wav(image_path, protocol='r36', rate=22050):
         None if a problem occured or a string with the path of the WAV
         file containing the result."""
     if os.path.isfile(image_path):
-        command = "./pisstvpp/pisstvpp -p %s -r%s %s" % \
+        command = "./home/pi/pisstvpp/pisstvpp -p %s -r%s %s" % \
                   (protocol, rate, image_path)
         logging.info('PiSSTV Command: %s' % command)
         return_code = subprocess.call(command, shell=True)

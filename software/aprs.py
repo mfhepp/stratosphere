@@ -241,7 +241,7 @@ def send_telemetry_definitions(frequency=config.APRS_FREQUENCY,
     if not ok:
         for idx, msg in enumerate(generate_aprs_telemetry_definition()):
             # command = 'aprs -c {callsign} --destination {destination} \
-            command = 'aprs -c {callsign} -d {path} -o /home/path/aprs_telemetry_{i}.wav "{info}"'.format(
+            command = 'aprs -c {callsign} -d {path} -o /home/pi/aprs_telemetry_{i}.wav "{info}"'.format(
                 callsign=ssid,
                 destination=aprs_destination,
                 path=aprs_path,
