@@ -132,8 +132,10 @@ def update_gps_info(gps_logger=None, nmea_logger=None):
             nmea_logger=nmea_logger)
         try:
             if datestamp is not None:
-                timestamp.value = datestamp.strftime("%Y-%m-%dT") \
-                    + str(gps_data.timestamp) + "Z"
+                time_string = datestamp.strftime("%Y-%m-%dT") \
+                    + str(gps_data.timestamp)[:7] + "Z"
+                logging.info('=> DEBUG: time_string = %s, len=%i' % (time_string, len(time_string)))
+                timestamp.value = time_string
             else:
                 timestamp.value = str(gps_data.timestamp)
             if time.time() > last_time_update + 30:
