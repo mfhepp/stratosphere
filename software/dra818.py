@@ -169,8 +169,8 @@ class DRA818(object):
             if response == '+DMOSETFILTER:0':
                 logging.info('Transceiver filter configuration OK.')
             else:
-                logging.warning('ERROR: Transceiver filter \
-                               configuration failed.')
+                logging.warning(
+                    'ERROR: Transceiver filter configuration failed.')
                 dra818_uart.close()
                 raise DRA818_Error
             dra818_uart.close()
@@ -404,8 +404,8 @@ class DRA818(object):
                 dra818_uart.close()
                 return True
             else:
-                logging.warning('ERROR: Transceiver filter \
-                              configuration failed.')
+                logging.warning(
+                    'ERROR: Transceiver filter configuration failed.')
                 dra818_uart.close()
                 return False
 

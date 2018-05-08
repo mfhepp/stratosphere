@@ -307,7 +307,8 @@ def main():
                 # We need to update the following two variables manually
                 logging.info('Sending APRS position with telemetry.')
                 cam_top_recording.value = int(cam_top.get_recording_status())
-                # cam_bottom_recording.value = int(cam_bottom.get_recording_status())
+                # cam_bottom_recording.value = \
+                # int(cam_bottom.get_recording_status())
                 aprs_position_msg = aprs.generate_aprs_position(telemetry=True)
                 aprs.send_aprs(aprs_position_msg,
                                full_power=config.APRS_FULL_POWER)
@@ -350,10 +351,28 @@ def main():
     # RISK: If battery voltage sensor is defective, system will be shut down.
     # So disabled right now.
     #            shutdown()
-            # Monitor shutdown switch
+            # Initialize shutdown switch
             GPIO.setmode(GPIO.BOARD)
             GPIO.setup(config.POWER_BUTTON_PIN, GPIO.IN,
                        pull_up_down=GPIO.PUD_UP)
+            # Wait for remaining time of the cycle
+            delay = config.CYCLE_DURATION - (time.time() - start_time)
+            GPIO.setmode(GPIO.BOARD)
+            GPIO.setup(config.SPARE_STATUS_LED_PIN, GPIO.OUT)
+            if delay > 0:
+                logging.info('Waiting %.1f s to complete cycle.' % delay)
+                for i in range(int(delay / 1)):
+                    GPIO.output(config.SPARE_STATUS_LED_PIN, True)
+                    time.sleep(1)
+                    GPIO.output(config.SPARE_STATUS_LED_PIN, False)
+                    # We should watch the switch also during the waiting time
+                    switch = GPIO.input(config.POWER_BUTTON_PIN)
+                    if not switch:
+                        break
+            else:
+                logging.info(
+                    'Warning: Transmissions longer than duration of cycle.')
+            # Now check again for shutdown switch
             switch = GPIO.input(config.POWER_BUTTON_PIN)
             if not switch:
                 counter = 0
@@ -361,6 +380,7 @@ def main():
                 while not GPIO.input(config.POWER_BUTTON_PIN):
                     counter += 1
                     time.sleep(0.1)
+                    # Switch must be closed for >= 5 sec
                     if counter > 50:
                             # Graceful shutdown sequence.
                             logging.info('Starting shut down sequence now.')
@@ -397,26 +417,15 @@ def main():
                             logging.info('Sending "sudo shutdown -h now".')
                             subprocess.call('sudo shutdown -h now',
                                             shell=True)
+                # Abort shutdown if button released
                 counter = 0
             else:
                 time.sleep(0.1)
             logging.info('Power switch status: %s [CTRL-C to stop]' % switch)
-    # TODO
-            # TBD: Also check SUV status
-            # Wait for remaining time of the cycle
-            delay = config.CYCLE_DURATION - (time.time() - start_time)
-            GPIO.setmode(GPIO.BOARD)
-            GPIO.setup(config.SPARE_STATUS_LED_PIN, GPIO.OUT)
-            if delay > 0:
-                logging.info('Waiting %.1f s to complete cycle.' % delay)
-                GPIO.output(config.SPARE_STATUS_LED_PIN, True)
-                time.sleep(delay)
-                GPIO.output(config.SPARE_STATUS_LED_PIN, False)
-            else:
-                logging.info('Warning: Transmissions > duration of cycle.')
+            # TBD: Also check S.USV status
         except KeyboardInterrupt:
             print 'CTRL-C detected. Shutting down threads.'
-                # Graceful shutdown sequence.
+            # Graceful shutdown sequence.
             logging.info('Starting shut down sequence now.')
             try:
                 transceiver.stop_transmitter()
