@@ -470,12 +470,14 @@ if __name__ == "__main__":
     utility.check_and_initialize_USB()
     # Delete APRS telemetry definition files
     try:
-        wav_files = ['aprs_telemetry_%i.wav' % i for i in range(4)]
+        wav_files = ['/home/pi/aprs_telemetry_%i.wav' % i for i in range(4)]
         for fn in wav_files:
             os.remove(fn)
     except OSError:
         pass
-    raw_input('Press ENTER to start the boot process, CTRL-C to exit.')
+    logging.info('Waiting 15 sec. for user abort, press CTRL-C to exit.')
+    time.sleep(15)
+    logging.info('Starting main software.')
     # Set up logging
     """log_filename = os.path.join(config.USB_DIR, 'logfiles', 'main.log')
     print log_filename

@@ -50,6 +50,7 @@ def _play_audio_file(audio_file_path):
         True if the command was successful, False in case of any error.
     """
     if os.path.isfile(audio_file_path):
+        logging.info('Trying to play file %s' % audio_file_path)
         command = "aplay %s" % audio_file_path
         return_code = subprocess.call(command, shell=True)
         if return_code == 0:

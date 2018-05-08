@@ -45,7 +45,7 @@ def check_and_initialize_USB():
         logging.error('ERROR: USB Media missing or write-protected.')
         logging.info('Trying to mount USB media.')
         try:
-            os.system("sudo ./shell/detect_and_mount_usb.sh")
+            os.system("sudo ./home/pi/shell/detect_and_mount_usb.sh")
             filehandle = open(fn, 'w')
             filehandle.close()
         except Exception as msg_time:

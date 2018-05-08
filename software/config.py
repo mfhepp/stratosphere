@@ -30,12 +30,12 @@ LOGFILE_DIR = "logfiles/"
 VIDEO_DIR = "videos/"
 IMAGE_DIR = "still_images/"
 DATA_DIR = "data/"
-AUDIO_BEACON = "files/beacon-english.wav"
-AUDIO_SELFTEST_START = 'files/selftest-start.wav'
-AUDIO_SELFTEST_OK = 'files/selftest-ok.wav'
-AUDIO_SELFTEST_FAILED = 'files/selftest-failed.wav'  # not used?
-AUDIO_APRS_TEST_SIGNAL = 'files/aprs-1200hz-2200hz-6db.wav'
-SSTV_TEST_IMAGE = 'files/sstv-testbild-small.png'
+AUDIO_BEACON = "/home/pi/files/beacon-english.wav"
+AUDIO_SELFTEST_START = '/home/pi/files/selftest-start.wav'
+AUDIO_SELFTEST_OK = '/home/pi/files/selftest-ok.wav'
+AUDIO_SELFTEST_FAILED = '/home/pi/files/selftest-failed.wav'  # not used?
+AUDIO_APRS_TEST_SIGNAL = '/home/pi/files/aprs-1200hz-2200hz-6db.wav'
+SSTV_TEST_IMAGE = '/home/pi/files/sstv-testbild-small.png'
 
 # GPS
 GPS_SERIAL_PORT = "/dev/ttyUSB0"  # just an example

@@ -9,7 +9,7 @@
 from ctypes import *
 import time
 
-path = "LSM9DS1_RaspberryPi_Library/lib/liblsm9ds1cwrapper.so"
+path = "/home/pi/LSM9DS1_RaspberryPi_Library/lib/liblsm9ds1cwrapper.so"
 lib = cdll.LoadLibrary(path)
 
 lib.lsm9ds1_create.argtypes = []

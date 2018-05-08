@@ -235,14 +235,13 @@ def send_telemetry_definitions(frequency=config.APRS_FREQUENCY,
     """
     # Check that all four files exist, otherwise regenerate all four
     ok = True
-    wav_files = ['aprs_telemetry_%i.wav' % i for i in range(4)]
+    wav_files = ['/home/pi/aprs_telemetry_%i.wav' % i for i in range(4)]
     for fn in wav_files:
         ok = ok and os.path.exists(fn)
     if not ok:
         for idx, msg in enumerate(generate_aprs_telemetry_definition()):
             # command = 'aprs -c {callsign} --destination {destination} \
-            command = 'aprs -c {callsign} -d {path} -o aprs_telemetry_{i}.wav \
-"{info}"'.format(
+            command = 'aprs -c {callsign} -d {path} -o /home/path/aprs_telemetry_{i}.wav "{info}"'.format(
                 callsign=ssid,
                 destination=aprs_destination,
                 path=aprs_path,
@@ -250,9 +249,9 @@ def send_telemetry_definitions(frequency=config.APRS_FREQUENCY,
                 info=msg)
             logging.info('Generating APRS wav for [%s]' % command)
             subprocess.call(command, shell=True)
-            if not os.path.exists('aprs_telemetry_%i.wav' % idx):
+            if not os.path.exists('/home/pi/aprs_telemetry_%i.wav' % idx):
                 logging.error(
-                    'Error: Problem generating aprs_telemetry_%i.wav' % idx)
+                    'Error: Problem generating /home/pi/aprs_telemetry_%i.wav' % idx)
                 return False
     # Transmit all four messages in one turn, i.e. without turning off
     # the transceiver.
