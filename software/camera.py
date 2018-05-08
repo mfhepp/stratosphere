@@ -85,6 +85,7 @@ class ExternalCamera(object):
         Note: Calling this function toggles between on and off.
         You cannot check the actual status."""
         GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(self.camera_power_on_off_pin, GPIO.OUT, initial=GPIO.HIGH)
         logging.info('Camera: On/off signal sent to %s (low)' % self.name)
         GPIO.output(self.camera_power_on_off_pin, GPIO.LOW)
         time.sleep(0.150)
@@ -107,6 +108,8 @@ class ExternalCamera(object):
             GPIO.setmode(GPIO.BOARD)
             logging.info('Camera: Recording signal sent to %s (low)' %
                          self.name)
+            GPIO.setup(self.camera_record_start_stop_pin, GPIO.OUT,
+                       initial=GPIO.HIGH)
             GPIO.output(self.camera_record_start_stop_pin, GPIO.LOW)
             time.sleep(1.200)
             GPIO.output(self.camera_record_start_stop_pin, GPIO.HIGH)

@@ -120,10 +120,9 @@ def _compose_message(aprs_info, destination='APRS', ssid=config.APRS_SSID,
 def send_aprs(aprs_info, frequency=config.APRS_FREQUENCY,
               ssid=config.APRS_SSID, aprs_path=config.APRS_PATH,
               aprs_destination=b'APRS', full_power=False):
-    """Transmits the given APRS message via the DRA818 transceiver object.
+    """Transmits the given APRS message via the DRA818 transceiver.
 
     Args:
-        transceiver (DRA818): The DRA818 transceiver object.
         aprs_info (str): The actual APRS payload.
         frequency (float): The frequency in MHz. Must be a multiple of
         25 KHz and within the allowed ham radio band allocation.
@@ -174,15 +173,29 @@ def send_aprs(aprs_info, frequency=config.APRS_FREQUENCY,
         # http://larsimmisch.github.io/pyalsaaudio/pyalsaaudio.html#alsa-and-python
         # Also see
         # http://www.forum-raspberrypi.de/Thread-suche-python-befehl-fuer-den-alsa-amixer
-        transceiver = dra818.DRA818(
-            uart=config.SERIAL_PORT_TRANSCEIVER,
-            ptt_pin=config.DRA818_PTT,
-            power_down_pin=config.DRA818_PD,
-            rf_power_level_pin=config.DRA818_HL,
-            frequency=frequency,
-            squelch_level=config.SQUELCH)
-        status = transceiver.transmit_audio_file(
-            frequency, [fn], full_power=full_power)
+        attempts = 0
+        while attempts < 3:
+            try:
+                transceiver = dra818.DRA818(
+                    uart=config.SERIAL_PORT_TRANSCEIVER,
+                    ptt_pin=config.DRA818_PTT,
+                    power_down_pin=config.DRA818_PD,
+                    rf_power_level_pin=config.DRA818_HL,
+                    frequency=frequency,
+                    squelch_level=config.SQUELCH)
+                break
+            except dra818.DRA818_Error:
+                attempts += 1
+                logging.warning(
+                    'Warning: Problem setting up transceiver, retrying.')
+        attempts = 0
+        while attempts < 3:
+            status = transceiver.transmit_audio_file(
+                frequency, [fn], full_power=full_power)
+            if status:
+                break
+            else:
+                attempts += 1
         try:
             os.remove(fn)
         except OSError:
@@ -250,9 +263,23 @@ def send_telemetry_definitions(frequency=config.APRS_FREQUENCY,
         rf_power_level_pin=config.DRA818_HL,
         frequency=frequency,
         squelch_level=config.SQUELCH)
-    transceiver.set_filters(pre_emphasis=config.PRE_EMPHASIS)
-    status = transceiver.transmit_audio_file(
-        frequency, wav_files, full_power=full_power)
+    attempts = 0
+    while attempts < 3:
+        try:
+            transceiver.set_filters(pre_emphasis=config.PRE_EMPHASIS)
+            break
+        except dra818.DRA818_Error:
+            attempts += 1
+            logging.warning(
+                'Warning: Problem setting up transceiver, retrying.')
+    attempts = 0
+    while attempts < 3:
+        status = transceiver.transmit_audio_file(
+            frequency, wav_files, full_power=full_power)
+        if status:
+            break
+        else:
+            attempts += 1
     return status
 
 

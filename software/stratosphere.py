@@ -5,6 +5,7 @@
 
 import logging
 import os
+import sys
 import subprocess
 import time
 import datetime
@@ -86,49 +87,6 @@ def sensors_handler():
                 time.sleep(delay)
         except Exception as msg:
             logging.exception(msg)
-
-
-def shutdown(real_shutdown=True):
-    """Graceful shutdown sequence."""
-    global cam_top
-    global p_gps
-    global p_imu
-    global p_sensors
-    global p_camera
-    global transceiver
-    logging.info('Starting shut down sequence now.')
-    try:
-        transceiver.stop_transmitter()
-    except Exception as msg:
-        logging.exception(msg)
-    # Shut down threads gracefully
-    continue_gps.value = 0
-    main_camera_active.value = 0
-    sensors_active.value = 0
-    imu_logging_active.value = 0
-    # We need to mark the GPS data as potentially outdated
-    altitude_outdated.value = 1
-    latitude_outdated.value = 1
-    longitude_outdated.value = 1
-    # Send power-down request to camera unit
-    logging.info('Shutting down top camera.')
-    cam_top.power_on_off()
-    # Now wait for processes to finish
-    logging.info('Waiting for GPS process.')
-    p_gps.join(35)
-    logging.info('Done.')
-    logging.info('Waiting for IMU process.')
-    p_imu.join(35)
-    logging.info('Done.')
-    logging.info('Waiting for sensors process.')
-    p_sensors.join(35)
-    logging.info('Done.')
-    logging.info('Waiting for main camera process.')
-    p_camera.join(90)
-    logging.info('Done.')
-    if real_shutdown:
-        logging.info('Sending "sudo shutdown -h now".')
-        subprocess.call('sudo shutdown -h now', shell=True)
 
 
 def main():
@@ -312,7 +270,7 @@ def main():
             # batt_voltage, batt_current, batt_temp,
             # cpu_temp
             data_message = '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,\
-             %s,%s,%s,%s' % (
+%s,%s,%s,%s' % (
                 datetime.datetime.utcnow().isoformat(),
                 latitude.value,
                 latitude_direction.value,
@@ -404,7 +362,41 @@ def main():
                     counter += 1
                     time.sleep(0.1)
                     if counter > 50:
-                        shutdown()
+                            # Graceful shutdown sequence.
+                            logging.info('Starting shut down sequence now.')
+                            try:
+                                transceiver.stop_transmitter()
+                            except Exception as msg:
+                                logging.exception(msg)
+                            # Shut down threads gracefully
+                            continue_gps.value = 0
+                            main_camera_active.value = 0
+                            sensors_active.value = 0
+                            imu_logging_active.value = 0
+                            # We need to mark the GPS data as
+                            # potentially outdated
+                            altitude_outdated.value = 1
+                            latitude_outdated.value = 1
+                            longitude_outdated.value = 1
+                            # Send power-down request to camera unit
+                            logging.info('Shutting down top camera.')
+                            cam_top.power_on_off()
+                            # Now wait for processes to finish
+                            logging.info('Waiting for GPS process.')
+                            p_gps.join(35)
+                            logging.info('Done.')
+                            logging.info('Waiting for IMU process.')
+                            p_imu.join(35)
+                            logging.info('Done.')
+                            logging.info('Waiting for sensors process.')
+                            p_sensors.join(35)
+                            logging.info('Done.')
+                            logging.info('Waiting for main camera process.')
+                            p_camera.join(90)
+                            logging.info('Done.')
+                            logging.info('Sending "sudo shutdown -h now".')
+                            subprocess.call('sudo shutdown -h now',
+                                            shell=True)
                 counter = 0
             else:
                 time.sleep(0.1)
@@ -424,11 +416,42 @@ def main():
                 logging.info('Warning: Transmissions > duration of cycle.')
         except KeyboardInterrupt:
             print 'CTRL-C detected. Shutting down threads.'
-            shutdown(real_shutdown=False)
+                # Graceful shutdown sequence.
+            logging.info('Starting shut down sequence now.')
+            try:
+                transceiver.stop_transmitter()
+            except Exception as msg:
+                logging.exception(msg)
+            # Shut down threads gracefully
+            continue_gps.value = 0
+            main_camera_active.value = 0
+            sensors_active.value = 0
+            imu_logging_active.value = 0
+            # We need to mark the GPS data as potentially outdated
+            altitude_outdated.value = 1
+            latitude_outdated.value = 1
+            longitude_outdated.value = 1
+            # Send power-down request to camera unit
+            logging.info('Shutting down top camera.')
+            cam_top.power_on_off()
+            # Now wait for processes to finish
+            logging.info('Waiting for GPS process.')
+            p_gps.join(35)
+            logging.info('Done.')
+            logging.info('Waiting for IMU process.')
+            p_imu.join(35)
+            logging.info('Done.')
+            logging.info('Waiting for sensors process.')
+            p_sensors.join(35)
+            logging.info('Done.')
+            logging.info('Waiting for main camera process.')
+            p_camera.join(90)
+            logging.info('Done.')
             break
+        except Exception as msg:
+            logging.exception(msg)
         finally:
             transceiver.stop_transmitter()
-            GPIO.cleanup()
 
 
 if __name__ == "__main__":
@@ -436,14 +459,20 @@ if __name__ == "__main__":
     # Check that USB media is available, writeable, and with sufficient
     # capacity
     utility.check_and_initialize_USB()
-    """    # Configure main logging
-    FORMAT = '%(asctime)-15s %(levelname)10s:  %(message)s'
-    logging.basicConfig(filename=os.path.join(
-        config.USB_DIR, 'logfiles/main.log'), level=logging.DEBUG,
-        format=FORMAT)
-    # Log to standard output as well
-    std_logger = logging.StreamHandler()
-    std_logger.setFormatter(logging.Formatter(FORMAT))
-    logging.getLogger().addHandler(std_logger)"""
+    raw_input('Press ENTER to start the boot process, CTRL-C to exit.')
+    # Set up logging
+    """log_filename = os.path.join(config.USB_DIR, 'logfiles', 'main.log')
+    print log_filename
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+        datefmt='%m-%d %H:%M',
+        filename=log_filename,
+        filemode='w')
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+    console.setFormatter(formatter)
+    logging.getLogger('').addHandler(console)"""
     main()
 
