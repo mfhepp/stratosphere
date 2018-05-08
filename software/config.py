@@ -168,7 +168,8 @@ DRA818_HL = 32  # GPIO12, RF Power Selection: Low->0.5W; floated->1W
 
 # Settings for video recording and still images
 LENGTH_VIDEO = 60  # in seconds
-VIDEO_PARAMS = (1920, 1080, 30)  # initial video params
+# VIDEO_PARAMS = (1920, 1080, 30)  # initial video params
+VIDEO_PARAMS = (1440, 960, 24)
 IMAGE_PARAMS = (2592, 1944)  # initial image params
 RESOLUTIONS = (
     # next_threshold video_params image_params
@@ -186,7 +187,7 @@ FORMAT = '%(asctime)-15s %(levelname)10s:  %(message)s'
 # Log to a file
 logging.basicConfig(
     filename=os.path.join(USB_DIR, 'main.log'),
-    level=logging.INFO, format=FORMAT)
+    level=logging.DEBUG, format=FORMAT)
 # Log to standard output as well
 std_logger = logging.StreamHandler()
 std_logger.setFormatter(logging.Formatter(FORMAT))
