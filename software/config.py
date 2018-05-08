@@ -3,6 +3,8 @@
 
 # config.py
 # Configuration settings for the probe and its sensors
+import logging
+import os
 import RPi.GPIO as GPIO
 
 # Mission configuration
@@ -178,3 +180,14 @@ RESOLUTIONS = (
 ANNOTATE_VIDEO = True
 ANNOTATE_STILL_IMAGE = True
 TEXT_SIZE = 40  # 6..160, default=32
+
+# Configure logging
+FORMAT = '%(asctime)-15s %(levelname)10s:  %(message)s'
+# Log to a file
+logging.basicConfig(
+    filename=os.path.join(USB_DIR, 'main.log'),
+    level=logging.INFO, format=FORMAT)
+# Log to standard output as well
+std_logger = logging.StreamHandler()
+std_logger.setFormatter(logging.Formatter(FORMAT))
+logging.getLogger().addHandler(std_logger)

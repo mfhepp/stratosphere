@@ -470,7 +470,8 @@ def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    # logging.basicConfig(level=logging.INFO)
+    # Logging is now set up via config.py and thus used by all modules
     # Check that USB media is available, writeable, and with sufficient
     # capacity
     utility.check_and_initialize_USB()
@@ -484,20 +485,6 @@ if __name__ == "__main__":
     logging.info('Waiting 5 sec. for user abort, press CTRL-C to exit.')
     time.sleep(5)
     logging.info('Starting main software.')
-    # Set up logging
-    """log_filename = os.path.join(config.USB_DIR, 'logfiles', 'main.log')
-    print log_filename
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-        datefmt='%m-%d %H:%M',
-        filename=log_filename,
-        filemode='w')
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
-    console.setFormatter(formatter)
-    logging.getLogger('').addHandler(console)"""
     main()
 
 

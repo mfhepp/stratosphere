@@ -3,6 +3,7 @@
 # modules of the application
 
 import multiprocessing as mp
+import config
 
 # Global variables in shared memory
 timestamp = mp.Array("c", "01-01-1970T00:00:00Z")
