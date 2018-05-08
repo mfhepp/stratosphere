@@ -34,6 +34,7 @@ AUDIO_BEACON = "/home/pi/files/beacon-english.wav"
 AUDIO_SELFTEST_START = '/home/pi/files/selftest-start.wav'
 AUDIO_SELFTEST_OK = '/home/pi/files/selftest-ok.wav'
 AUDIO_SELFTEST_FAILED = '/home/pi/files/selftest-failed.wav'  # not used?
+AUDIO_SHUTDOWN = '/home/pi/files/shutdown-started.wav'
 AUDIO_APRS_TEST_SIGNAL = '/home/pi/files/aprs-1200hz-2200hz-6db.wav'
 SSTV_TEST_IMAGE = '/home/pi/files/sstv-testbild-small.png'
 

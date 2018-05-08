@@ -5,7 +5,6 @@
 
 import logging
 import os
-import sys
 import subprocess
 import time
 import datetime
@@ -401,6 +400,13 @@ def main():
                             # Send power-down request to camera unit
                             logging.info('Shutting down top camera.')
                             cam_top.power_on_off()
+                            # Broadcast shutdown beacon
+                            try:
+                                transceiver.transmit_audio_file(
+                                    config.SSTV_FREQUENCY,
+                                    [config.AUDIO_SHUTDOWN])
+                            finally:
+                                transceiver.stop_transmitter()
                             # Now wait for processes to finish
                             logging.info('Waiting for GPS process.')
                             p_gps.join(35)
@@ -475,8 +481,8 @@ if __name__ == "__main__":
             os.remove(fn)
     except OSError:
         pass
-    logging.info('Waiting 15 sec. for user abort, press CTRL-C to exit.')
-    time.sleep(15)
+    logging.info('Waiting 5 sec. for user abort, press CTRL-C to exit.')
+    time.sleep(5)
     logging.info('Starting main software.')
     # Set up logging
     """log_filename = os.path.join(config.USB_DIR, 'logfiles', 'main.log')
@@ -493,4 +499,6 @@ if __name__ == "__main__":
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)"""
     main()
+
+
 
