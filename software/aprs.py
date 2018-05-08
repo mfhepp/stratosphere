@@ -459,6 +459,11 @@ if __name__ == '__main__':
             logging.info('Transmission status: %s' % status)
         except KeyboardInterrupt:
             logging.info('APRS tests completed.')
+            continue_gps.value = 0
+            sensors_active.value = 0
+            p_gps.join(10)
+            p_sensors.join(10)
+            logging.info('Sensor and GPS threads shut down.')
             break
     p_gps.join(10)
     p_sensors.join(10)

@@ -468,6 +468,13 @@ if __name__ == "__main__":
     # Check that USB media is available, writeable, and with sufficient
     # capacity
     utility.check_and_initialize_USB()
+    # Delete APRS telemetry definition files
+    try:
+        wav_files = ['aprs_telemetry_%i.wav' % i for i in range(4)]
+        for fn in wav_files:
+            os.remove(fn)
+    except OSError:
+        pass
     raw_input('Press ENTER to start the boot process, CTRL-C to exit.')
     # Set up logging
     """log_filename = os.path.join(config.USB_DIR, 'logfiles', 'main.log')
