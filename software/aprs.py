@@ -147,7 +147,9 @@ def send_aprs(aprs_info, frequency=config.APRS_FREQUENCY,
             info=aprs_info,
             digipeaters=aprs_path.split(b','))
         logging.info(r"APRS packet content: '{0}'".format(packet))
-        fn = os.path.join(config.USB_DIR, 'aprs.wav')
+        # fn = os.path.join(config.USB_DIR, 'aprs.wav')
+#TODO
+        fn = '/home/pi/aprs.wav'
         logging.info('Now generating file %s for APRS packet.' % fn)
         audio = afsk.encode(packet.unparse())
         with open(fn, 'wb') as f:

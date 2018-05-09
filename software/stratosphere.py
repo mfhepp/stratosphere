@@ -32,7 +32,9 @@ def camera_handler():
                     minimum=config.VIDEO_RECORDING_DISK_SPACE_MINIMUM):
                 logging.info('Starting main camera recording, d = 60 sec.')
                 fn_video = camera.InternalCamera.video_recording(
-                    duration=60, preview=True)
+                    duration=60,
+                    preview=False,
+                    video_settings=config.VIDEO_PARAMS)
                 logging.info('Main camera recording saved to %s.' % fn_video)
             else:
                 logging.warning('WARNING: Less than 4 GB disk space, ' +
@@ -52,6 +54,8 @@ def camera_handler():
             print config.CALLSIGN
             text_field.text((5, 5), '%s \n Alt: %.2f' % (
                 config.MISSION_TEXT, altitude.value), font=font)
+#TODO
+            fn_sstv_final = '/home/pi/sstv-image.jpg'
             image.save(fn_sstv_final)
             logging.info('Annotated SSTV image saved to %s.' % fn_sstv_final)
             # Update SSTV image path variable
@@ -196,6 +200,7 @@ def main():
     logging.info('Sensors logging OK.')
     # Set up and start internal camera thread or subprocess
     main_camera_active.value = 1
+#TEST
     logging.info('Starting main camera process.')
     p_camera = mp.Process(target=camera_handler)
     p_camera.start()

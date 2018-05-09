@@ -134,7 +134,6 @@ def update_gps_info(gps_logger=None, nmea_logger=None):
             if datestamp is not None:
                 time_string = datestamp.strftime("%Y-%m-%dT") \
                     + str(gps_data.timestamp)[:8] + "Z"
-                logging.info('=> DEBUG: time_string = %s, len=%i' % (time_string, len(time_string)))
                 timestamp.value = time_string
             else:
                 timestamp.value = str(gps_data.timestamp)
